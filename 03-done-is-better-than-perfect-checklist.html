@@ -1,0 +1,358 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Done is Better Than Perfect Launch Checklist | The Burks Collective</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.2/babel.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,600;0,700;1,400;1,600&family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: 'Poppins', sans-serif; background: #F0EDE8; }
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+const { useState, useEffect, useRef } = React;
+
+
+const STORAGE_KEY = "burks_launch_checklist";
+
+const SECTIONS = [
+  {
+    id: "product",
+    title: "Your Product Is Ready",
+    description: "Before anything else, the product itself needs to be complete and deliverable.",
+    items: [
+      "Your product has a clear, specific title",
+      "The outcome your buyer will achieve is stated clearly inside the product",
+      "Every section or module is complete. No placeholders, no half-finished pages",
+      "The product has been reviewed at least once for clarity and flow",
+      "It is exported in its final delivery format (PDF, video, audio, etc.)",
+      "Someone outside your own head has looked at it and confirmed it makes sense",
+    ],
+  },
+  {
+    id: "delivery",
+    title: "Delivery Is Set Up",
+    description: "Your buyer needs a seamless path from payment to product. Test it before you launch.",
+    items: [
+      "Your product is uploaded to your delivery platform",
+      "Your payment link or checkout page is live and working",
+      "You have tested the full purchase flow yourself",
+      "The confirmation email or delivery message is set up and sends automatically",
+      "You know exactly what your buyer receives and when they receive it",
+    ],
+  },
+  {
+    id: "positioning",
+    title: "Your Positioning Is Clear",
+    description: "You need to be able to say what this product does and who it is for in two sentences or less.",
+    items: [
+      "You can describe your product in one to two sentences without stumbling",
+      "Your product description names a specific person and a specific result",
+      "Your price is set and you are confident in it",
+      "You know the one thing that makes this product worth buying",
+    ],
+  },
+  {
+    id: "audience",
+    title: "Your Audience Knows It Is Coming",
+    description: "A launch without an audience is just publishing. These steps warm the room before you open the door.",
+    items: [
+      "You have mentioned this product at least once before launch day",
+      "At least one person in your audience has said they are interested or would buy",
+      "Your email list knows something is coming",
+      "You have a clear answer to the question: who is this for and why do they need it now",
+    ],
+  },
+  {
+    id: "content",
+    title: "Your Launch Content Is Prepared",
+    description: "You do not need a complicated launch. You need consistent, clear communication for a focused window of time.",
+    items: [
+      "Your launch email is written and ready to send",
+      "You have at least three social posts planned for launch week",
+      "Each piece of content focuses on the buyer's problem and the product's result, not just features",
+      "You have a direct link to purchase in every piece of launch content",
+      "You know your launch window: when it starts and when it ends",
+    ],
+  },
+  {
+    id: "mindset",
+    title: "You Are Ready to Launch",
+    description: "This section is not about perfection. It is about permission.",
+    items: [
+      "You have accepted that the product does not have to be perfect to help someone",
+      "You understand that waiting longer will not make it more ready, it will only delay the income",
+      "You are prepared to follow up and keep talking about this product after launch day",
+      "You know your next step after launch: whether that is a relaunch, a new audience, or a next offer",
+    ],
+  },
+];
+
+const getMessage = (pct) => {
+  if (pct === 0) return "Work through each section honestly. This checklist is not about checking boxes. It is about making sure your buyer has a good experience from day one.";
+  if (pct < 30) return "You are getting started. Keep moving through each section and do not skip the delivery setup. That is where most launches break down.";
+  if (pct < 55) return "Good progress. Keep going. The sections you have not touched yet are likely the ones that feel uncomfortable. Do those next.";
+  if (pct < 80) return "You are close. Review what is left and be honest about whether anything is actually blocking you or whether you are just delaying.";
+  if (pct < 100) return "Almost there. Finish the remaining items and then launch. Do not add more to the list. Do not revise what is already done. Launch.";
+  return "You are ready. Everything on this list is done. The only thing left is to send the email, post the content, and let people buy. Go.";
+};
+
+function LaunchChecklist() {
+  const [data, setData] = useState(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEY);
+      if (saved) return JSON.parse(saved);
+    } catch {}
+    return {
+      productName: "",
+      checks: {},
+      started: false,
+    };
+  });
+
+  const [nameInput, setNameInput] = useState(data.productName || "");
+  const [openSection, setOpenSection] = useState(SECTIONS[0].id);
+
+  useEffect(() => {
+    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(data)); } catch {}
+  }, [data]);
+
+  const allItems = SECTIONS.flatMap((s) => s.items.map((_, i) => `${s.id}_${i}`));
+  const checkedCount = allItems.filter((k) => data.checks[k]).length;
+  const totalCount = allItems.length;
+  const pct = Math.round((checkedCount / totalCount) * 100);
+
+  const sectionPct = (section) => {
+    const keys = section.items.map((_, i) => `${section.id}_${i}`);
+    const done = keys.filter((k) => data.checks[k]).length;
+    return Math.round((done / keys.length) * 100);
+  };
+
+  const toggle = (sectionId, index) => {
+    const key = `${sectionId}_${index}`;
+    setData((prev) => ({
+      ...prev,
+      checks: { ...prev.checks, [key]: !prev.checks[key] },
+    }));
+  };
+
+  const reset = () => {
+    setData({ productName: "", checks: {}, started: false });
+    setNameInput("");
+    try { localStorage.removeItem(STORAGE_KEY); } catch {}
+  };
+
+  const c = {
+    cream: "#F0EDE8", sage: "#8A9E8C", brown: "#3D1C02",
+    taupe: "#C4A882", offwhite: "#FAF8F5",
+    muted: "#A89880", border: "#E0D9D1", light: "#EDE8E2",
+  };
+
+  const S = {
+    wrap: { minHeight: "100vh", background: c.cream, fontFamily: "'Poppins', sans-serif", padding: "0 16px 80px" },
+    inner: { maxWidth: 680, margin: "0 auto" },
+    header: { paddingTop: 40, paddingBottom: 24, borderBottom: `1px solid ${c.taupe}`, marginBottom: 36 },
+    brandLabel: { fontFamily: "'Lora', serif", fontSize: 13, color: c.taupe, letterSpacing: "0.06em", marginBottom: 4 },
+    pageTitle: { fontFamily: "'Lora', serif", fontSize: 28, fontWeight: 700, color: c.brown, margin: "0 0 6px" },
+    pageSub: { fontSize: 13, color: "#6b5a4e", margin: 0, lineHeight: 1.6 },
+    eyebrow: { fontSize: 11, letterSpacing: "0.16em", textTransform: "uppercase", color: c.sage, fontWeight: 700, marginBottom: 14 },
+    card: { background: c.offwhite, borderRadius: 16, padding: "32px 36px", boxShadow: "0 2px 20px rgba(61,28,2,0.06)", marginBottom: 16 },
+    btn: { background: c.brown, color: c.offwhite, border: "none", borderRadius: 10, padding: "13px 28px", fontSize: 13, fontWeight: 600, fontFamily: "'Poppins', sans-serif", cursor: "pointer", letterSpacing: "0.04em" },
+    btnOutline: { background: "transparent", color: c.brown, border: `2px solid ${c.brown}`, borderRadius: 10, padding: "11px 24px", fontSize: 13, fontWeight: 600, fontFamily: "'Poppins', sans-serif", cursor: "pointer" },
+    btnGhost: { background: "transparent", color: c.muted, border: `1px solid ${c.border}`, borderRadius: 8, padding: "7px 14px", fontSize: 11, fontWeight: 600, fontFamily: "'Poppins', sans-serif", cursor: "pointer" },
+    input: { width: "100%", padding: "13px 16px", borderRadius: 10, border: `2px solid ${c.border}`, background: c.cream, fontSize: 14, fontFamily: "'Poppins', sans-serif", color: c.brown, outline: "none", boxSizing: "border-box", marginBottom: 24 },
+  };
+
+  // Intro screen
+  if (!data.started) {
+    return (
+      <div style={S.wrap}>
+        <link href="https://fonts.googleapis.com/css2?family=Lora:wght@400;600;700&family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+        <div style={S.inner}>
+          <div style={S.header}>
+            <p style={S.brandLabel}>The Burks Collective</p>
+            <h1 style={S.pageTitle}>Done is Better Than Perfect Launch Checklist</h1>
+            <p style={S.pageSub}>Six sections. Thirty items. Everything you need to confirm before you go live.</p>
+          </div>
+          <div style={S.card}>
+            <p style={S.eyebrow}>Before You Begin</p>
+            <p style={{ fontSize: 15, color: c.brown, lineHeight: 1.8, marginBottom: 8 }}>
+              This checklist is not about perfection. It is about readiness. Work through each section honestly and do not skip anything because it feels uncomfortable. The items that feel hard to check off are usually the ones that matter most.
+            </p>
+            <p style={{ fontSize: 14, color: "#6b5a4e", lineHeight: 1.7, marginBottom: 28 }}>
+              Your progress saves automatically so you can come back to this as many times as you need before launch day.
+            </p>
+            <label style={{ display: "block", fontSize: 13, fontWeight: 600, color: c.brown, marginBottom: 8, letterSpacing: "0.04em" }}>
+              What product are you launching?
+            </label>
+            <input
+              style={S.input}
+              placeholder="e.g. 90-Day Budget Reset Guide"
+              value={nameInput}
+              onChange={(e) => setNameInput(e.target.value)}
+            />
+            <button
+              style={{ ...S.btn, ...(!nameInput.trim() ? { opacity: 0.35, cursor: "not-allowed" } : {}) }}
+              disabled={!nameInput.trim()}
+              onClick={() => setData((prev) => ({ ...prev, productName: nameInput.trim(), started: true }))}
+            >
+              Start Checklist
+            </button>
+          </div>
+
+          <div style={S.card}>
+            <p style={S.eyebrow}>What Is Inside</p>
+            {SECTIONS.map((s, i) => (
+              <div key={s.id} style={{ display: "flex", gap: 16, padding: "12px 0", borderBottom: i < SECTIONS.length - 1 ? `1px solid ${c.light}` : "none" }}>
+                <div style={{ width: 26, height: 26, borderRadius: "50%", background: c.sage, display: "flex", alignItems: "center", justifyContent: "center", color: c.offwhite, fontSize: 11, fontWeight: 700, flexShrink: 0 }}>{i + 1}</div>
+                <div>
+                  <p style={{ fontSize: 14, fontWeight: 600, color: c.brown, margin: "0 0 2px" }}>{s.title}</p>
+                  <p style={{ fontSize: 12, color: c.muted, margin: 0, lineHeight: 1.5 }}>{s.items.length} items</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Checklist screen
+  return (
+    <div style={S.wrap}>
+      <link href="https://fonts.googleapis.com/css2?family=Lora:wght@400;600;700&family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+      <div style={S.inner}>
+        <div style={S.header}>
+          <p style={S.brandLabel}>The Burks Collective</p>
+          <h1 style={S.pageTitle}>Done is Better Than Perfect Launch Checklist</h1>
+          <p style={S.pageSub}>{data.productName}</p>
+        </div>
+
+        {/* Progress Card */}
+        <div style={{ ...S.card, background: c.brown, marginBottom: 24 }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 14 }}>
+            <div>
+              <p style={{ fontSize: 11, letterSpacing: "0.16em", textTransform: "uppercase", color: c.taupe, fontWeight: 700, marginBottom: 6 }}>Launch Readiness</p>
+              <p style={{ fontSize: 12, color: "rgba(240,237,232,0.7)", margin: 0 }}>{checkedCount} of {totalCount} items complete</p>
+            </div>
+            <span style={{ fontFamily: "'Lora', serif", fontSize: 48, fontWeight: 700, color: c.offwhite, lineHeight: 1 }}>{pct}%</span>
+          </div>
+          <div style={{ height: 6, borderRadius: 6, background: "rgba(255,255,255,0.15)", overflow: "hidden", marginBottom: 14 }}>
+            <div style={{ height: "100%", width: `${pct}%`, background: c.sage, borderRadius: 6, transition: "width 0.4s ease" }} />
+          </div>
+          <p style={{ fontSize: 13, color: "rgba(240,237,232,0.85)", fontStyle: "italic", margin: 0, lineHeight: 1.7 }}>
+            {getMessage(pct)}
+          </p>
+        </div>
+
+        {/* Section Navigation */}
+        <div style={{ display: "flex", gap: 8, overflowX: "auto", marginBottom: 20, paddingBottom: 4 }}>
+          {SECTIONS.map((s) => {
+            const sp = sectionPct(s);
+            const isActive = openSection === s.id;
+            const isComplete = sp === 100;
+            return (
+              <button key={s.id} onClick={() => setOpenSection(s.id)} style={{
+                flexShrink: 0, padding: "9px 16px", borderRadius: 10,
+                border: isActive ? `2px solid ${c.brown}` : `2px solid ${isComplete ? c.sage : c.border}`,
+                background: isActive ? c.brown : isComplete ? "rgba(138,158,140,0.1)" : c.offwhite,
+                color: isActive ? c.offwhite : c.brown,
+                fontSize: 11, fontWeight: 700, fontFamily: "'Poppins', sans-serif", cursor: "pointer",
+                display: "flex", flexDirection: "column", alignItems: "center", gap: 3,
+              }}>
+                <span style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                  {isComplete && !isActive && <span style={{ color: c.sage, fontSize: 10 }}>✓</span>}
+                  {s.title.split(" ").slice(0, 2).join(" ")}
+                </span>
+                <span style={{ fontSize: 10, opacity: 0.65 }}>{sp}%</span>
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Active Section */}
+        {SECTIONS.filter((s) => s.id === openSection).map((section) => (
+          <div key={section.id} style={S.card}>
+            <h2 style={{ fontFamily: "'Lora', serif", fontSize: 20, fontWeight: 700, color: c.brown, margin: "0 0 6px" }}>{section.title}</h2>
+            <p style={{ fontSize: 13, color: c.muted, marginBottom: 28, lineHeight: 1.6 }}>{section.description}</p>
+
+            {section.items.map((item, i) => {
+              const key = `${section.id}_${i}`;
+              const checked = !!data.checks[key];
+              return (
+                <div
+                  key={i}
+                  onClick={() => toggle(section.id, i)}
+                  style={{
+                    display: "flex", alignItems: "flex-start", gap: 14,
+                    padding: "14px 0",
+                    borderBottom: i < section.items.length - 1 ? `1px solid ${c.light}` : "none",
+                    cursor: "pointer",
+                  }}
+                >
+                  <div style={{
+                    width: 22, height: 22, borderRadius: 6, flexShrink: 0, marginTop: 1,
+                    border: checked ? "none" : `2px solid ${c.border}`,
+                    background: checked ? c.sage : "transparent",
+                    display: "flex", alignItems: "center", justifyContent: "center",
+                    transition: "all 0.15s ease",
+                  }}>
+                    {checked && <span style={{ color: c.offwhite, fontSize: 12, fontWeight: 700 }}>✓</span>}
+                  </div>
+                  <p style={{
+                    fontSize: 14, color: checked ? c.muted : c.brown,
+                    textDecoration: checked ? "line-through" : "none",
+                    margin: 0, lineHeight: 1.7, flex: 1,
+                    transition: "color 0.15s ease",
+                  }}>
+                    {item}
+                  </p>
+                </div>
+              );
+            })}
+
+            {/* Section navigation */}
+            <div style={{ display: "flex", gap: 12, marginTop: 28 }}>
+              {SECTIONS.findIndex((s) => s.id === section.id) > 0 && (
+                <button style={S.btnGhost} onClick={() => {
+                  const idx = SECTIONS.findIndex((s) => s.id === section.id);
+                  setOpenSection(SECTIONS[idx - 1].id);
+                }}>Back</button>
+              )}
+              {SECTIONS.findIndex((s) => s.id === section.id) < SECTIONS.length - 1 && (
+                <button style={S.btn} onClick={() => {
+                  const idx = SECTIONS.findIndex((s) => s.id === section.id);
+                  setOpenSection(SECTIONS[idx + 1].id);
+                }}>Next Section</button>
+              )}
+              {SECTIONS.findIndex((s) => s.id === section.id) === SECTIONS.length - 1 && pct === 100 && (
+                <div style={{ background: c.sage, borderRadius: 12, padding: "16px 22px", flex: 1 }}>
+                  <p style={{ fontSize: 14, fontWeight: 700, color: c.offwhite, margin: "0 0 4px" }}>You are ready to launch.</p>
+                  <p style={{ fontSize: 13, color: "rgba(250,248,245,0.85)", margin: 0 }}>Everything on this checklist is complete. Go send that email.</p>
+                </div>
+              )}
+            </div>
+          </div>
+        ))}
+
+        <div style={{ display: "flex", gap: 14, marginTop: 8 }}>
+          <button style={S.btnOutline} onClick={reset}>Start Over With a New Product</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+
+const domContainer = document.getElementById('root');
+const root = ReactDOM.createRoot(domContainer);
+root.render(React.createElement(LaunchChecklist));
+</script>
+</body>
+</html>

@@ -1,0 +1,487 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>30-Day Visibility Planner | The Burks Collective</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.2/babel.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,600;0,700;1,400;1,600&family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: 'Poppins', sans-serif; background: #F0EDE8; }
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+const { useState, useEffect, useRef } = React;
+
+
+const STORAGE_KEY = "burks_visibility_planner";
+
+const PLATFORMS = [
+  { id: "email", label: "Email", icon: "✉", color: "#3D1C02", freq: 2 },
+  { id: "instagram", label: "Instagram", icon: "◈", color: "#8A9E8C", freq: 4 },
+  { id: "facebook", label: "Facebook", icon: "◇", color: "#C4A882", freq: 3 },
+  { id: "youtube", label: "YouTube", icon: "▷", color: "#3D1C02", freq: 1 },
+  { id: "pinterest", label: "Pinterest", icon: "◉", color: "#8A9E8C", freq: 3 },
+  { id: "substack", label: "Substack", icon: "○", color: "#C4A882", freq: 1 },
+  { id: "linkedin", label: "LinkedIn", icon: "◆", color: "#3D1C02", freq: 2 },
+  { id: "tiktok", label: "TikTok", icon: "▲", color: "#8A9E8C", freq: 3 },
+];
+
+const CONTENT_TYPES = {
+  email: ["Value email", "Story email", "Offer email", "Nurture email"],
+  instagram: ["Value post", "Behind the scenes", "Testimonial share", "Offer post", "Reel idea", "Carousel"],
+  facebook: ["Value post", "Live announcement", "Community question", "Offer post"],
+  youtube: ["Tutorial video", "Story video", "Product walkthrough"],
+  pinterest: ["Tips pin", "Product pin", "Quote pin", "Blog pin"],
+  substack: ["Educational article", "Personal essay", "Offer announcement"],
+  linkedin: ["Professional insight", "Story post", "Offer post"],
+  tiktok: ["Quick tip", "Story video", "Behind the scenes", "Trending audio post"],
+};
+
+const WEEKS = ["Week 1", "Week 2", "Week 3", "Week 4"];
+const DAYS_LABELS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+
+const generateSchedule = (platforms) => {
+  const days = Array.from({ length: 30 }, (_, i) => ({
+    day: i + 1,
+    posts: [],
+  }));
+
+  platforms.forEach((pid) => {
+    const p = PLATFORMS.find((pl) => pl.id === pid);
+    if (!p) return;
+    const freq = p.freq;
+    const types = CONTENT_TYPES[pid] || ["Post"];
+    const interval = Math.floor(30 / (freq * 4));
+    let count = 0;
+    for (let d = 0; d < 30 && count < freq * 4; d += Math.max(1, interval)) {
+      const typeIndex = count % types.length;
+      days[d].posts.push({
+        platform: pid,
+        type: types[typeIndex],
+        note: "",
+        done: false,
+      });
+      count++;
+    }
+  });
+
+  return days;
+};
+
+function VisibilityPlanner() {
+  const [data, setData] = useState(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEY);
+      if (saved) return JSON.parse(saved);
+    } catch {}
+    return { screen: "intro", productName: "", platforms: [], schedule: [], startDate: "" };
+  });
+
+  const [view, setView] = useState("list");
+  const [activeDay, setActiveDay] = useState(null);
+  const [editPost, setEditPost] = useState(null);
+  const [noteText, setNoteText] = useState("");
+  const [nameInput, setNameInput] = useState(data.productName || "");
+
+  useEffect(() => {
+    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(data)); } catch {}
+  }, [data]);
+
+  const togglePlatform = (pid) => {
+    setData((prev) => ({
+      ...prev,
+      platforms: prev.platforms.includes(pid)
+        ? prev.platforms.filter((p) => p !== pid)
+        : [...prev.platforms, pid],
+    }));
+  };
+
+  const buildSchedule = () => {
+    const schedule = generateSchedule(data.platforms);
+    setData((prev) => ({
+      ...prev,
+      productName: nameInput.trim(),
+      schedule,
+      startDate: new Date().toISOString().split("T")[0],
+      screen: "planner",
+    }));
+  };
+
+  const toggleDone = (dayIndex, postIndex) => {
+    setData((prev) => {
+      const schedule = prev.schedule.map((d, di) =>
+        di === dayIndex
+          ? { ...d, posts: d.posts.map((p, pi) => pi === postIndex ? { ...p, done: !p.done } : p) }
+          : d
+      );
+      return { ...prev, schedule };
+    });
+  };
+
+  const saveNote = (dayIndex, postIndex) => {
+    setData((prev) => {
+      const schedule = prev.schedule.map((d, di) =>
+        di === dayIndex
+          ? { ...d, posts: d.posts.map((p, pi) => pi === postIndex ? { ...p, note: noteText } : p) }
+          : d
+      );
+      return { ...prev, schedule };
+    });
+    setEditPost(null);
+    setNoteText("");
+  };
+
+  const addPost = (dayIndex, pid, type) => {
+    setData((prev) => {
+      const schedule = prev.schedule.map((d, di) =>
+        di === dayIndex
+          ? { ...d, posts: [...d.posts, { platform: pid, type, note: "", done: false }] }
+          : d
+      );
+      return { ...prev, schedule };
+    });
+  };
+
+  const removePost = (dayIndex, postIndex) => {
+    setData((prev) => {
+      const schedule = prev.schedule.map((d, di) =>
+        di === dayIndex
+          ? { ...d, posts: d.posts.filter((_, pi) => pi !== postIndex) }
+          : d
+      );
+      return { ...prev, schedule };
+    });
+  };
+
+  const totalPosts = data.schedule.reduce((acc, d) => acc + d.posts.length, 0);
+  const donePosts = data.schedule.reduce((acc, d) => acc + d.posts.filter((p) => p.done).length, 0);
+  const pct = totalPosts > 0 ? Math.round((donePosts / totalPosts) * 100) : 0;
+
+  const getPlatform = (id) => PLATFORMS.find((p) => p.id === id);
+
+  const c = {
+    cream: "#F0EDE8", sage: "#8A9E8C", brown: "#3D1C02",
+    taupe: "#C4A882", offwhite: "#FAF8F5",
+    muted: "#A89880", border: "#E0D9D1", light: "#EDE8E2",
+  };
+
+  const S = {
+    wrap: { minHeight: "100vh", background: c.cream, fontFamily: "'Poppins', sans-serif", padding: "0 16px 80px" },
+    inner: { maxWidth: 720, margin: "0 auto" },
+    header: { paddingTop: 40, paddingBottom: 24, borderBottom: `1px solid ${c.taupe}`, marginBottom: 32 },
+    brandLabel: { fontFamily: "'Lora', serif", fontSize: 13, color: c.taupe, letterSpacing: "0.06em", marginBottom: 4 },
+    pageTitle: { fontFamily: "'Lora', serif", fontSize: 28, fontWeight: 700, color: c.brown, margin: "0 0 6px" },
+    pageSub: { fontSize: 13, color: "#6b5a4e", margin: 0, lineHeight: 1.6 },
+    eyebrow: { fontSize: 11, letterSpacing: "0.16em", textTransform: "uppercase", color: c.sage, fontWeight: 700, marginBottom: 14 },
+    card: { background: c.offwhite, borderRadius: 16, padding: "28px 32px", boxShadow: "0 2px 20px rgba(61,28,2,0.06)", marginBottom: 16 },
+    btn: { background: c.brown, color: c.offwhite, border: "none", borderRadius: 10, padding: "13px 28px", fontSize: 13, fontWeight: 600, fontFamily: "'Poppins', sans-serif", cursor: "pointer", letterSpacing: "0.04em" },
+    btnSm: { background: c.brown, color: c.offwhite, border: "none", borderRadius: 8, padding: "7px 14px", fontSize: 11, fontWeight: 600, fontFamily: "'Poppins', sans-serif", cursor: "pointer" },
+    btnOutline: { background: "transparent", color: c.brown, border: `2px solid ${c.brown}`, borderRadius: 10, padding: "11px 24px", fontSize: 13, fontWeight: 600, fontFamily: "'Poppins', sans-serif", cursor: "pointer" },
+    btnGhost: { background: "transparent", color: c.muted, border: `1px solid ${c.border}`, borderRadius: 8, padding: "6px 12px", fontSize: 11, fontWeight: 600, fontFamily: "'Poppins', sans-serif", cursor: "pointer" },
+    input: { width: "100%", padding: "13px 16px", borderRadius: 10, border: `2px solid ${c.border}`, background: c.cream, fontSize: 14, fontFamily: "'Poppins', sans-serif", color: c.brown, outline: "none", boxSizing: "border-box" },
+    textarea: { width: "100%", padding: "12px 14px", borderRadius: 10, border: `2px solid ${c.border}`, background: c.cream, fontSize: 13, fontFamily: "'Poppins', sans-serif", color: c.brown, outline: "none", boxSizing: "border-box", resize: "vertical", minHeight: 72, lineHeight: 1.6 },
+  };
+
+  // INTRO
+  if (data.screen === "intro") {
+    return (
+      <div style={S.wrap}>
+        <link href="https://fonts.googleapis.com/css2?family=Lora:wght@400;600;700&family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+        <div style={S.inner}>
+          <div style={S.header}>
+            <p style={S.brandLabel}>The Burks Collective</p>
+            <h1 style={S.pageTitle}>30-Day Visibility Planner</h1>
+            <p style={S.pageSub}>Pick your platforms, get a suggested posting schedule, and customize it around your product and your voice.</p>
+          </div>
+
+          <div style={S.card}>
+            <p style={S.eyebrow}>What product are you promoting?</p>
+            <input
+              style={{ ...S.input, marginBottom: 28 }}
+              placeholder="e.g. From Experience to Income: The Complete Toolkit"
+              value={nameInput}
+              onChange={(e) => setNameInput(e.target.value)}
+            />
+
+            <p style={S.eyebrow}>Select Your Platforms</p>
+            <p style={{ fontSize: 13, color: "#6b5a4e", marginBottom: 20, lineHeight: 1.7 }}>
+              Choose the platforms where you are already active or plan to show up during this 30-day window. The planner will build a realistic posting schedule based on each platform's recommended frequency.
+            </p>
+
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 10, marginBottom: 32 }}>
+              {PLATFORMS.map((p) => {
+                const selected = data.platforms.includes(p.id);
+                return (
+                  <button key={p.id} onClick={() => togglePlatform(p.id)} style={{
+                    padding: "10px 18px", borderRadius: 10,
+                    border: selected ? `2px solid ${c.brown}` : `2px solid ${c.border}`,
+                    background: selected ? c.brown : c.offwhite,
+                    color: selected ? c.offwhite : c.brown,
+                    fontSize: 13, fontWeight: 600, fontFamily: "'Poppins', sans-serif",
+                    cursor: "pointer", display: "flex", alignItems: "center", gap: 8,
+                    transition: "all 0.15s ease",
+                  }}>
+                    <span>{p.icon}</span>
+                    <span>{p.label}</span>
+                  </button>
+                );
+              })}
+            </div>
+
+            {data.platforms.length > 0 && (
+              <div style={{ background: c.cream, borderRadius: 12, padding: "16px 18px", marginBottom: 24, borderLeft: `3px solid ${c.sage}` }}>
+                <p style={{ fontSize: 12, fontWeight: 700, color: c.sage, letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 8 }}>Your Schedule Preview</p>
+                {data.platforms.map((pid) => {
+                  const p = PLATFORMS.find((pl) => pl.id === pid);
+                  return (
+                    <p key={pid} style={{ fontSize: 13, color: c.brown, margin: "0 0 4px" }}>
+                      <strong>{p.label}</strong> — {p.freq * 4} posts over 30 days ({p.freq}x per week)
+                    </p>
+                  );
+                })}
+              </div>
+            )}
+
+            <button
+              style={{ ...S.btn, ...(!data.platforms.length || !nameInput.trim() ? { opacity: 0.35, cursor: "not-allowed" } : {}) }}
+              disabled={!data.platforms.length || !nameInput.trim()}
+              onClick={buildSchedule}
+            >
+              Build My Plan
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // PLANNER
+  const weeks = [0, 1, 2, 3].map((w) => data.schedule.slice(w * 7, w * 7 + 7));
+
+  return (
+    <div style={S.wrap}>
+      <link href="https://fonts.googleapis.com/css2?family=Lora:wght@400;600;700&family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+      <div style={S.inner}>
+        <div style={S.header}>
+          <p style={S.brandLabel}>The Burks Collective</p>
+          <h1 style={S.pageTitle}>30-Day Visibility Planner</h1>
+          <p style={S.pageSub}>{data.productName}</p>
+        </div>
+
+        {/* Progress */}
+        <div style={{ ...S.card, background: c.brown, marginBottom: 20 }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 12 }}>
+            <div>
+              <p style={{ fontSize: 11, letterSpacing: "0.16em", textTransform: "uppercase", color: c.taupe, fontWeight: 700, marginBottom: 6 }}>Visibility Progress</p>
+              <p style={{ fontSize: 12, color: "rgba(240,237,232,0.7)", margin: 0 }}>{donePosts} of {totalPosts} posts published</p>
+            </div>
+            <span style={{ fontFamily: "'Lora', serif", fontSize: 44, fontWeight: 700, color: c.offwhite, lineHeight: 1 }}>{pct}%</span>
+          </div>
+          <div style={{ height: 5, borderRadius: 5, background: "rgba(255,255,255,0.15)", overflow: "hidden" }}>
+            <div style={{ height: "100%", width: `${pct}%`, background: c.sage, borderRadius: 5, transition: "width 0.4s ease" }} />
+          </div>
+        </div>
+
+        {/* View Toggle */}
+        <div style={{ display: "flex", gap: 8, marginBottom: 20 }}>
+          {["list", "calendar"].map((v) => (
+            <button key={v} onClick={() => setView(v)} style={{
+              padding: "9px 20px", borderRadius: 10,
+              border: view === v ? `2px solid ${c.brown}` : `2px solid ${c.border}`,
+              background: view === v ? c.brown : c.offwhite,
+              color: view === v ? c.offwhite : c.brown,
+              fontSize: 12, fontWeight: 700, fontFamily: "'Poppins', sans-serif", cursor: "pointer",
+              textTransform: "capitalize",
+            }}>{v === "list" ? "List View" : "Calendar View"}</button>
+          ))}
+          <button style={{ ...S.btnGhost, marginLeft: "auto" }} onClick={() => setData({ screen: "intro", productName: "", platforms: [], schedule: [], startDate: "" })}>
+            Start Over
+          </button>
+        </div>
+
+        {/* LIST VIEW */}
+        {view === "list" && weeks.map((week, wi) => (
+          <div key={wi} style={{ marginBottom: 24 }}>
+            <p style={{ ...S.eyebrow, marginBottom: 12 }}>{WEEKS[wi]}</p>
+            {week.map((day, di) => {
+              const dayIndex = wi * 7 + di;
+              const hasPosts = day.posts.length > 0;
+              return (
+                <div key={di} style={{
+                  background: c.offwhite,
+                  borderRadius: 12,
+                  marginBottom: 8,
+                  overflow: "hidden",
+                  boxShadow: "0 1px 8px rgba(61,28,2,0.05)",
+                }}>
+                  <div
+                    style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px 20px", cursor: "pointer", borderBottom: activeDay === dayIndex && hasPosts ? `1px solid ${c.light}` : "none" }}
+                    onClick={() => setActiveDay(activeDay === dayIndex ? null : dayIndex)}
+                  >
+                    <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                      <div style={{ width: 32, height: 32, borderRadius: "50%", background: hasPosts ? c.sage : c.light, display: "flex", alignItems: "center", justifyContent: "center", color: hasPosts ? c.offwhite : c.muted, fontSize: 11, fontWeight: 700 }}>
+                        {day.day}
+                      </div>
+                      <div>
+                        <p style={{ fontSize: 13, fontWeight: 600, color: c.brown, margin: 0 }}>{DAYS_LABELS[di % 7]}, Day {day.day}</p>
+                        <p style={{ fontSize: 11, color: c.muted, margin: 0 }}>{hasPosts ? `${day.posts.length} post${day.posts.length > 1 ? "s" : ""} scheduled` : "Rest day"}</p>
+                      </div>
+                    </div>
+                    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                      {day.posts.map((post, pi) => {
+                        const pl = getPlatform(post.platform);
+                        return pl ? (
+                          <span key={pi} style={{ fontSize: 14, opacity: post.done ? 0.4 : 1 }} title={pl.label}>{pl.icon}</span>
+                        ) : null;
+                      })}
+                      <span style={{ fontSize: 12, color: c.muted, marginLeft: 4 }}>{activeDay === dayIndex ? "▲" : "▼"}</span>
+                    </div>
+                  </div>
+
+                  {activeDay === dayIndex && (
+                    <div style={{ padding: "16px 20px" }}>
+                      {day.posts.map((post, pi) => {
+                        const pl = getPlatform(post.platform);
+                        const isEditing = editPost?.day === dayIndex && editPost?.post === pi;
+                        return (
+                          <div key={pi} style={{ display: "flex", gap: 12, alignItems: "flex-start", padding: "12px 0", borderBottom: `1px solid ${c.light}` }}>
+                            <button onClick={() => toggleDone(dayIndex, pi)} style={{
+                              width: 22, height: 22, borderRadius: 6, flexShrink: 0, marginTop: 1,
+                              border: post.done ? "none" : `2px solid ${c.border}`,
+                              background: post.done ? c.sage : "transparent",
+                              cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center",
+                            }}>
+                              {post.done && <span style={{ color: c.offwhite, fontSize: 11, fontWeight: 700 }}>✓</span>}
+                            </button>
+                            <div style={{ flex: 1 }}>
+                              <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
+                                <span style={{ fontSize: 13, fontWeight: 700, color: pl?.color || c.brown, textDecoration: post.done ? "line-through" : "none" }}>{pl?.icon} {pl?.label}</span>
+                                <span style={{ fontSize: 12, color: c.muted }}>{post.type}</span>
+                              </div>
+                              {isEditing ? (
+                                <div>
+                                  <textarea
+                                    style={{ ...S.textarea, marginBottom: 8 }}
+                                    placeholder="Add your content idea, caption notes, or any details for this post..."
+                                    value={noteText}
+                                    onChange={(e) => setNoteText(e.target.value)}
+                                  />
+                                  <div style={{ display: "flex", gap: 8 }}>
+                                    <button style={S.btnSm} onClick={() => saveNote(dayIndex, pi)}>Save</button>
+                                    <button style={S.btnGhost} onClick={() => { setEditPost(null); setNoteText(""); }}>Cancel</button>
+                                  </div>
+                                </div>
+                              ) : (
+                                <div>
+                                  {post.note && <p style={{ fontSize: 12, color: "#6b5a4e", margin: "0 0 6px", lineHeight: 1.6 }}>{post.note}</p>}
+                                  <div style={{ display: "flex", gap: 8 }}>
+                                    <button style={S.btnGhost} onClick={() => { setEditPost({ day: dayIndex, post: pi }); setNoteText(post.note || ""); }}>
+                                      {post.note ? "Edit Note" : "Add Note"}
+                                    </button>
+                                    <button style={{ ...S.btnGhost, color: "#b07070" }} onClick={() => removePost(dayIndex, pi)}>Remove</button>
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
+
+                      {/* Add post */}
+                      <div style={{ marginTop: 14 }}>
+                        <p style={{ fontSize: 11, color: c.muted, fontWeight: 600, marginBottom: 8, textTransform: "uppercase", letterSpacing: "0.08em" }}>Add a post</p>
+                        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                          {data.platforms.map((pid) => {
+                            const pl = getPlatform(pid);
+                            return (
+                              <button key={pid} onClick={() => addPost(dayIndex, pid, CONTENT_TYPES[pid]?.[0] || "Post")} style={{
+                                padding: "6px 12px", borderRadius: 8,
+                                border: `1px solid ${c.border}`,
+                                background: "transparent", color: c.brown,
+                                fontSize: 11, fontWeight: 600, fontFamily: "'Poppins', sans-serif", cursor: "pointer",
+                              }}>
+                                {pl?.icon} {pl?.label}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        ))}
+
+        {/* CALENDAR VIEW */}
+        {view === "calendar" && (
+          <div>
+            {weeks.map((week, wi) => (
+              <div key={wi} style={{ marginBottom: 20 }}>
+                <p style={{ ...S.eyebrow, marginBottom: 10 }}>{WEEKS[wi]}</p>
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 6 }}>
+                  {DAYS_LABELS.map((dl, dli) => (
+                    <div key={dli} style={{ fontSize: 10, fontWeight: 700, color: c.muted, textAlign: "center", textTransform: "uppercase", letterSpacing: "0.06em", paddingBottom: 6 }}>{dl}</div>
+                  ))}
+                  {week.map((day, di) => {
+                    const dayIndex = wi * 7 + di;
+                    const hasPosts = day.posts.length > 0;
+                    const allDone = hasPosts && day.posts.every((p) => p.done);
+                    return (
+                      <div
+                        key={di}
+                        onClick={() => { setActiveDay(dayIndex); setView("list"); }}
+                        style={{
+                          background: allDone ? `rgba(138,158,140,0.15)` : c.offwhite,
+                          borderRadius: 10, padding: "10px 8px", minHeight: 80,
+                          border: hasPosts ? `2px solid ${allDone ? c.sage : c.taupe}` : `1px solid ${c.light}`,
+                          cursor: hasPosts ? "pointer" : "default",
+                          transition: "all 0.15s ease",
+                        }}
+                      >
+                        <p style={{ fontSize: 12, fontWeight: 700, color: c.brown, margin: "0 0 6px", textAlign: "center" }}>{day.day}</p>
+                        <div style={{ display: "flex", flexWrap: "wrap", gap: 3, justifyContent: "center" }}>
+                          {day.posts.slice(0, 4).map((post, pi) => {
+                            const pl = getPlatform(post.platform);
+                            return (
+                              <span key={pi} style={{ fontSize: 11, opacity: post.done ? 0.4 : 1 }} title={pl?.label}>{pl?.icon}</span>
+                            );
+                          })}
+                          {day.posts.length > 4 && <span style={{ fontSize: 10, color: c.muted }}>+{day.posts.length - 4}</span>}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Next Step */}
+        <div style={{ ...S.card, borderLeft: `4px solid ${c.sage}`, marginTop: 8 }}>
+          <p style={{ ...S.eyebrow, marginBottom: 8 }}>Your Next Step</p>
+          <p style={{ fontSize: 15, fontWeight: 600, color: c.brown, margin: "0 0 8px" }}>Move into Module 5: The Income Tracker.</p>
+          <p style={{ fontSize: 14, color: "#6b5a4e", lineHeight: 1.7, margin: 0 }}>
+            You have your visibility plan in place. Now set up your income dashboard so you can track every sale that comes in as a result of showing up consistently.
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+
+const domContainer = document.getElementById('root');
+const root = ReactDOM.createRoot(domContainer);
+root.render(React.createElement(VisibilityPlanner));
+</script>
+</body>
+</html>

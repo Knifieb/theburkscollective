@@ -1,0 +1,495 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Monthly Income Dashboard | The Burks Collective</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.2/babel.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,600;0,700;1,400;1,600&family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: 'Poppins', sans-serif; background: #F0EDE8; }
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+const { useState, useEffect, useRef } = React;
+
+
+const STORAGE_KEY = "burks_income_dashboard";
+
+const MONTHS = ["January","February","March","April","May","June","July","August","September","October","November","December"];
+
+const now = new Date();
+const currentMonthKey = () => `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,"0")}`;
+const formatMonthKey = (key) => { const [y,m] = key.split("-"); return `${MONTHS[parseInt(m)-1]} ${y}`; };
+const formatCurrency = (n) => "$" + Number(n||0).toLocaleString("en-US",{minimumFractionDigits:2,maximumFractionDigits:2});
+const formatCurrencyShort = (n) => "$" + Math.round(n||0).toLocaleString();
+
+const defaultMonth = (key) => ({
+  key,
+  goal: 0,
+  products: [],
+  sales: [],
+  weeklyTotals: { w1: "", w2: "", w3: "", w4: "" },
+});
+
+function IncomeDashboard() {
+  const [store, setStore] = useState(() => {
+    try { const s = localStorage.getItem(STORAGE_KEY); if (s) return JSON.parse(s); } catch {}
+    const mk = currentMonthKey();
+    return { screen: "setup", months: { [mk]: defaultMonth(mk) }, activeMonth: mk, products: [] };
+  });
+
+  const [view, setView] = useState("dashboard");
+  const [logMode, setLogMode] = useState("sale");
+  const [saleForm, setSaleForm] = useState({ product: "", amount: "", note: "" });
+  const [weekForm, setWeekForm] = useState({ week: "w1", amount: "" });
+  const [addingProduct, setAddingProduct] = useState(false);
+  const [newProduct, setNewProduct] = useState("");
+  const [goalInput, setGoalInput] = useState("");
+  const [setupName, setSetupName] = useState("");
+  const [setupGoal, setSetupGoal] = useState("");
+  const [setupProducts, setSetupProducts] = useState([""]);
+
+  useEffect(() => { try { localStorage.setItem(STORAGE_KEY, JSON.stringify(store)); } catch {} }, [store]);
+
+  const update = (fn) => setStore((prev) => { const next = { ...prev }; fn(next); return next; });
+
+  const activeMonth = store.months[store.activeMonth] || defaultMonth(store.activeMonth);
+  const allProducts = store.products || [];
+
+  // Computed values
+  const salesTotal = activeMonth.sales.reduce((a, s) => a + parseFloat(s.amount || 0), 0);
+  const weeklyTotal = Object.values(activeMonth.weeklyTotals || {}).reduce((a, v) => a + parseFloat(v || 0), 0);
+  const totalRevenue = salesTotal + weeklyTotal;
+  const goal = parseFloat(activeMonth.goal || 0);
+  const pct = goal > 0 ? Math.min(100, Math.round((totalRevenue / goal) * 100)) : 0;
+
+  const revenueByProduct = allProducts.map((p) => {
+    const sales = activeMonth.sales.filter((s) => s.product === p);
+    return { name: p, count: sales.length, revenue: sales.reduce((a, s) => a + parseFloat(s.amount || 0), 0) };
+  }).filter((p) => p.count > 0);
+
+  // Month over month
+  const monthKeys = Object.keys(store.months).sort();
+  const activeIdx = monthKeys.indexOf(store.activeMonth);
+  const prevKey = activeIdx > 0 ? monthKeys[activeIdx - 1] : null;
+  const prevMonth = prevKey ? store.months[prevKey] : null;
+  const prevTotal = prevMonth ? (prevMonth.sales?.reduce((a, s) => a + parseFloat(s.amount || 0), 0) || 0) + Object.values(prevMonth.weeklyTotals || {}).reduce((a, v) => a + parseFloat(v || 0), 0) : 0;
+  const growth = prevTotal > 0 ? Math.round(((totalRevenue - prevTotal) / prevTotal) * 100) : null;
+
+  const addSale = () => {
+    if (!saleForm.product || !saleForm.amount) return;
+    update((s) => {
+      const m = s.months[s.activeMonth];
+      m.sales = [...(m.sales || []), { ...saleForm, date: new Date().toISOString(), id: Date.now() }];
+    });
+    setSaleForm({ product: "", amount: "", note: "" });
+  };
+
+  const removeSale = (id) => {
+    update((s) => { s.months[s.activeMonth].sales = s.months[s.activeMonth].sales.filter((sl) => sl.id !== id); });
+  };
+
+  const saveWeekly = () => {
+    if (!weekForm.amount) return;
+    update((s) => { s.months[s.activeMonth].weeklyTotals[weekForm.week] = weekForm.amount; });
+    setWeekForm({ week: "w1", amount: "" });
+  };
+
+  const addProduct = () => {
+    if (!newProduct.trim()) return;
+    update((s) => { s.products = [...(s.products || []), newProduct.trim()]; });
+    setNewProduct(""); setAddingProduct(false);
+  };
+
+  const switchMonth = (key) => {
+    update((s) => {
+      if (!s.months[key]) s.months[key] = defaultMonth(key);
+      s.activeMonth = key;
+    });
+  };
+
+  const completeSetup = () => {
+    const products = setupProducts.filter((p) => p.trim());
+    const mk = currentMonthKey();
+    update((s) => {
+      s.screen = "active";
+      s.name = setupName.trim();
+      s.products = products;
+      s.months[mk] = { ...defaultMonth(mk), goal: parseFloat(setupGoal) || 0 };
+      s.activeMonth = mk;
+    });
+  };
+
+  const c = {
+    cream: "#F0EDE8", sage: "#8A9E8C", brown: "#3D1C02",
+    taupe: "#C4A882", offwhite: "#FAF8F5",
+    muted: "#A89880", border: "#E0D9D1", light: "#EDE8E2",
+  };
+
+  const S = {
+    wrap: { minHeight: "100vh", background: c.cream, fontFamily: "'Poppins', sans-serif", padding: "0 16px 80px" },
+    inner: { maxWidth: 720, margin: "0 auto" },
+    header: { paddingTop: 40, paddingBottom: 24, borderBottom: `1px solid ${c.taupe}`, marginBottom: 32 },
+    brandLabel: { fontFamily: "'Lora', serif", fontSize: 13, color: c.taupe, letterSpacing: "0.06em", marginBottom: 4 },
+    pageTitle: { fontFamily: "'Lora', serif", fontSize: 28, fontWeight: 700, color: c.brown, margin: "0 0 6px" },
+    pageSub: { fontSize: 13, color: "#6b5a4e", margin: 0, lineHeight: 1.6 },
+    eyebrow: { fontSize: 11, letterSpacing: "0.16em", textTransform: "uppercase", color: c.sage, fontWeight: 700, marginBottom: 14 },
+    card: { background: c.offwhite, borderRadius: 16, padding: "28px 32px", boxShadow: "0 2px 20px rgba(61,28,2,0.06)", marginBottom: 16 },
+    label: { display: "block", fontSize: 13, fontWeight: 600, color: c.brown, marginBottom: 6 },
+    input: { width: "100%", padding: "12px 16px", borderRadius: 10, border: `2px solid ${c.border}`, background: c.cream, fontSize: 14, fontFamily: "'Poppins', sans-serif", color: c.brown, outline: "none", boxSizing: "border-box" },
+    select: { width: "100%", padding: "12px 16px", borderRadius: 10, border: `2px solid ${c.border}`, background: c.cream, fontSize: 14, fontFamily: "'Poppins', sans-serif", color: c.brown, outline: "none", boxSizing: "border-box" },
+    btn: { background: c.brown, color: c.offwhite, border: "none", borderRadius: 10, padding: "12px 26px", fontSize: 13, fontWeight: 600, fontFamily: "'Poppins', sans-serif", cursor: "pointer" },
+    btnSm: { background: c.brown, color: c.offwhite, border: "none", borderRadius: 8, padding: "8px 16px", fontSize: 12, fontWeight: 600, fontFamily: "'Poppins', sans-serif", cursor: "pointer" },
+    btnOutline: { background: "transparent", color: c.brown, border: `2px solid ${c.brown}`, borderRadius: 10, padding: "10px 22px", fontSize: 13, fontWeight: 600, fontFamily: "'Poppins', sans-serif", cursor: "pointer" },
+    btnGhost: { background: "transparent", color: c.muted, border: `1px solid ${c.border}`, borderRadius: 8, padding: "6px 12px", fontSize: 11, fontWeight: 600, fontFamily: "'Poppins', sans-serif", cursor: "pointer" },
+    btnTab: (active) => ({ padding: "9px 18px", borderRadius: 10, border: active ? `2px solid ${c.brown}` : `2px solid ${c.border}`, background: active ? c.brown : c.offwhite, color: active ? c.offwhite : c.brown, fontSize: 12, fontWeight: 700, fontFamily: "'Poppins', sans-serif", cursor: "pointer" }),
+  };
+
+  // SETUP
+  if (store.screen === "setup") {
+    return (
+      <div style={S.wrap}>
+        <link href="https://fonts.googleapis.com/css2?family=Lora:wght@400;600;700&family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+        <div style={S.inner}>
+          <div style={S.header}>
+            <p style={S.brandLabel}>The Burks Collective</p>
+            <h1 style={S.pageTitle}>Monthly Income Dashboard</h1>
+            <p style={S.pageSub}>Set up your dashboard once and track every dollar your products bring in.</p>
+          </div>
+          <div style={S.card}>
+            <p style={S.eyebrow}>Your Setup</p>
+            <label style={{ ...S.label, marginTop: 0 }}>Your name or brand name</label>
+            <input style={{ ...S.input, marginBottom: 20 }} placeholder="e.g. The Burks Collective" value={setupName} onChange={(e) => setSetupName(e.target.value)} />
+
+            <label style={S.label}>Monthly income goal for {formatMonthKey(currentMonthKey())}</label>
+            <div style={{ position: "relative", marginBottom: 24 }}>
+              <span style={{ position: "absolute", left: 14, top: "50%", transform: "translateY(-50%)", color: c.muted, fontWeight: 600 }}>$</span>
+              <input style={{ ...S.input, paddingLeft: 28 }} type="number" placeholder="1000" value={setupGoal} onChange={(e) => setSetupGoal(e.target.value)} />
+            </div>
+
+            <label style={S.label}>Your products</label>
+            <p style={{ fontSize: 12, color: c.muted, marginBottom: 12 }}>Add the products you are currently selling. You can add more later.</p>
+            {setupProducts.map((p, i) => (
+              <div key={i} style={{ display: "flex", gap: 8, marginBottom: 10 }}>
+                <input style={S.input} placeholder={`Product ${i + 1} name`} value={p} onChange={(e) => { const arr = [...setupProducts]; arr[i] = e.target.value; setSetupProducts(arr); }} />
+                {setupProducts.length > 1 && <button style={S.btnGhost} onClick={() => setSetupProducts(setupProducts.filter((_, si) => si !== i))}>✕</button>}
+              </div>
+            ))}
+            <button style={{ ...S.btnGhost, marginBottom: 28 }} onClick={() => setSetupProducts([...setupProducts, ""])}>+ Add Product</button>
+
+            <button
+              style={{ ...S.btn, ...(!setupName.trim() || !setupGoal ? { opacity: 0.35, cursor: "not-allowed" } : {}) }}
+              disabled={!setupName.trim() || !setupGoal}
+              onClick={completeSetup}
+            >
+              Launch My Dashboard
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // DASHBOARD
+  return (
+    <div style={S.wrap}>
+      <link href="https://fonts.googleapis.com/css2?family=Lora:wght@400;600;700&family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+      <div style={S.inner}>
+        <div style={S.header}>
+          <p style={S.brandLabel}>The Burks Collective</p>
+          <h1 style={S.pageTitle}>Income Dashboard</h1>
+          <p style={S.pageSub}>{store.name}</p>
+        </div>
+
+        {/* Month Selector */}
+        <div style={{ display: "flex", gap: 8, overflowX: "auto", marginBottom: 20, paddingBottom: 4, alignItems: "center" }}>
+          {monthKeys.map((key) => (
+            <button key={key} onClick={() => switchMonth(key)} style={S.btnTab(store.activeMonth === key)}>
+              {formatMonthKey(key)}
+            </button>
+          ))}
+          <button style={S.btnGhost} onClick={() => {
+            const d = new Date();
+            d.setMonth(d.getMonth() + 1);
+            const key = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}`;
+            switchMonth(key);
+          }}>+ New Month</button>
+        </div>
+
+        {/* View Tabs */}
+        <div style={{ display: "flex", gap: 8, marginBottom: 20 }}>
+          {["dashboard", "log", "history"].map((v) => (
+            <button key={v} onClick={() => setView(v)} style={S.btnTab(view === v)}>
+              {v.charAt(0).toUpperCase() + v.slice(1)}
+            </button>
+          ))}
+        </div>
+
+        {/* DASHBOARD VIEW */}
+        {view === "dashboard" && (
+          <>
+            {/* Hero Revenue Card */}
+            <div style={{ ...S.card, background: c.brown }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 16 }}>
+                <div>
+                  <p style={{ fontSize: 11, letterSpacing: "0.16em", textTransform: "uppercase", color: c.taupe, fontWeight: 700, marginBottom: 6 }}>{formatMonthKey(store.activeMonth)} Revenue</p>
+                  <p style={{ fontFamily: "'Lora', serif", fontSize: 52, fontWeight: 700, color: c.offwhite, lineHeight: 1, margin: 0 }}>{formatCurrencyShort(totalRevenue)}</p>
+                  <p style={{ fontSize: 13, color: "rgba(240,237,232,0.65)", marginTop: 6 }}>Goal: {formatCurrencyShort(goal)}</p>
+                </div>
+                <div style={{ textAlign: "right" }}>
+                  <p style={{ fontFamily: "'Lora', serif", fontSize: 36, fontWeight: 700, color: pct >= 100 ? c.sage : c.taupe, margin: 0 }}>{pct}%</p>
+                  <p style={{ fontSize: 12, color: "rgba(240,237,232,0.6)", margin: "4px 0 0" }}>of goal</p>
+                </div>
+              </div>
+              <div style={{ height: 6, borderRadius: 6, background: "rgba(255,255,255,0.12)", overflow: "hidden", marginBottom: 12 }}>
+                <div style={{ height: "100%", width: `${pct}%`, background: c.sage, borderRadius: 6, transition: "width 0.5s ease" }} />
+              </div>
+              <div style={{ display: "flex", gap: 16 }}>
+                <p style={{ fontSize: 12, color: "rgba(240,237,232,0.7)", margin: 0 }}>
+                  {goal > totalRevenue ? `${formatCurrencyShort(goal - totalRevenue)} to go` : "Goal reached!"}
+                </p>
+                {growth !== null && (
+                  <p style={{ fontSize: 12, color: growth >= 0 ? c.sage : "#e08080", margin: 0, fontWeight: 600 }}>
+                    {growth >= 0 ? "+" : ""}{growth}% vs last month
+                  </p>
+                )}
+              </div>
+            </div>
+
+            {/* Stats Row */}
+            <div style={{ display: "flex", gap: 12, marginBottom: 0, flexWrap: "wrap" }}>
+              {[
+                { label: "Total Sales", value: activeMonth.sales?.length || 0, sub: "individual transactions" },
+                { label: "Avg Sale Value", value: activeMonth.sales?.length > 0 ? formatCurrencyShort(salesTotal / activeMonth.sales.length) : "$0", sub: "per transaction" },
+                { label: "Remaining to Goal", value: formatCurrencyShort(Math.max(0, goal - totalRevenue)), sub: goal > totalRevenue ? "keep going" : "goal reached" },
+              ].map((stat, i) => (
+                <div key={i} style={{ ...S.card, flex: 1, minWidth: 140, marginBottom: 16, padding: "20px 20px" }}>
+                  <p style={{ fontSize: 11, color: c.muted, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 8 }}>{stat.label}</p>
+                  <p style={{ fontFamily: "'Lora', serif", fontSize: 24, fontWeight: 700, color: c.brown, margin: "0 0 4px" }}>{stat.value}</p>
+                  <p style={{ fontSize: 11, color: c.muted, margin: 0 }}>{stat.sub}</p>
+                </div>
+              ))}
+            </div>
+
+            {/* Revenue by Product */}
+            {revenueByProduct.length > 0 && (
+              <div style={S.card}>
+                <p style={S.eyebrow}>Revenue by Product</p>
+                {revenueByProduct.map((p, i) => {
+                  const barPct = totalRevenue > 0 ? (p.revenue / totalRevenue) * 100 : 0;
+                  return (
+                    <div key={i} style={{ padding: "12px 0", borderBottom: i < revenueByProduct.length - 1 ? `1px solid ${c.light}` : "none" }}>
+                      <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8 }}>
+                        <div>
+                          <p style={{ fontSize: 14, fontWeight: 600, color: c.brown, margin: "0 0 2px" }}>{p.name}</p>
+                          <p style={{ fontSize: 12, color: c.muted, margin: 0 }}>{p.count} {p.count === 1 ? "sale" : "sales"}</p>
+                        </div>
+                        <p style={{ fontFamily: "'Lora', serif", fontSize: 18, fontWeight: 700, color: c.brown, margin: 0 }}>{formatCurrency(p.revenue)}</p>
+                      </div>
+                      <div style={{ height: 5, borderRadius: 5, background: c.light, overflow: "hidden" }}>
+                        <div style={{ height: "100%", width: `${barPct}%`, background: c.sage, borderRadius: 5 }} />
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+
+            {/* Weekly Breakdown */}
+            <div style={S.card}>
+              <p style={S.eyebrow}>Weekly Breakdown</p>
+              {["w1","w2","w3","w4"].map((wk, i) => {
+                const wkSales = activeMonth.sales?.filter((s) => {
+                  const d = new Date(s.date);
+                  const dayOfMonth = d.getDate();
+                  const weekNum = Math.ceil(dayOfMonth / 7);
+                  return weekNum === i + 1;
+                });
+                const wkSaleTotal = wkSales?.reduce((a, s) => a + parseFloat(s.amount || 0), 0) || 0;
+                const wkManual = parseFloat(activeMonth.weeklyTotals?.[wk] || 0);
+                const wkTotal = wkSaleTotal + wkManual;
+                return (
+                  <div key={wk} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px 0", borderBottom: i < 3 ? `1px solid ${c.light}` : "none" }}>
+                    <p style={{ fontSize: 14, fontWeight: 600, color: c.brown, margin: 0 }}>Week {i + 1}</p>
+                    <p style={{ fontFamily: "'Lora', serif", fontSize: 18, fontWeight: 700, color: wkTotal > 0 ? c.brown : c.muted, margin: 0 }}>{formatCurrency(wkTotal)}</p>
+                  </div>
+                );
+              })}
+            </div>
+          </>
+        )}
+
+        {/* LOG VIEW */}
+        {view === "log" && (
+          <>
+            <div style={{ display: "flex", gap: 8, marginBottom: 20 }}>
+              <button onClick={() => setLogMode("sale")} style={S.btnTab(logMode === "sale")}>Log a Sale</button>
+              <button onClick={() => setLogMode("weekly")} style={S.btnTab(logMode === "weekly")}>Weekly Total</button>
+              <button onClick={() => setGoalInput(String(activeMonth.goal || ""))} style={{ ...S.btnGhost, marginLeft: "auto" }}>Edit Goal</button>
+            </div>
+
+            {goalInput !== "" && (
+              <div style={{ ...S.card, borderLeft: `3px solid ${c.sage}`, marginBottom: 16 }}>
+                <p style={{ fontSize: 13, fontWeight: 600, color: c.brown, marginBottom: 10 }}>Update Monthly Goal</p>
+                <div style={{ display: "flex", gap: 8 }}>
+                  <div style={{ position: "relative", flex: 1 }}>
+                    <span style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", color: c.muted, fontWeight: 600 }}>$</span>
+                    <input style={{ ...S.input, paddingLeft: 26 }} type="number" value={goalInput} onChange={(e) => setGoalInput(e.target.value)} />
+                  </div>
+                  <button style={S.btnSm} onClick={() => { update((s) => { s.months[s.activeMonth].goal = parseFloat(goalInput) || 0; }); setGoalInput(""); }}>Save</button>
+                  <button style={S.btnGhost} onClick={() => setGoalInput("")}>Cancel</button>
+                </div>
+              </div>
+            )}
+
+            {logMode === "sale" && (
+              <div style={S.card}>
+                <p style={S.eyebrow}>Log Individual Sale</p>
+                <label style={S.label}>Product</label>
+                <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
+                  <select style={S.select} value={saleForm.product} onChange={(e) => setSaleForm({ ...saleForm, product: e.target.value })}>
+                    <option value="">Select a product</option>
+                    {allProducts.map((p) => <option key={p} value={p}>{p}</option>)}
+                  </select>
+                  {!addingProduct && <button style={S.btnGhost} onClick={() => setAddingProduct(true)}>+ New</button>}
+                </div>
+                {addingProduct && (
+                  <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
+                    <input style={S.input} placeholder="Product name" value={newProduct} onChange={(e) => setNewProduct(e.target.value)} />
+                    <button style={S.btnSm} onClick={addProduct}>Add</button>
+                    <button style={S.btnGhost} onClick={() => setAddingProduct(false)}>Cancel</button>
+                  </div>
+                )}
+
+                <label style={S.label}>Sale Amount</label>
+                <div style={{ position: "relative", marginBottom: 16 }}>
+                  <span style={{ position: "absolute", left: 14, top: "50%", transform: "translateY(-50%)", color: c.muted, fontWeight: 600 }}>$</span>
+                  <input style={{ ...S.input, paddingLeft: 28 }} type="number" placeholder="27.00" value={saleForm.amount} onChange={(e) => setSaleForm({ ...saleForm, amount: e.target.value })} />
+                </div>
+
+                <label style={S.label}>Note (optional)</label>
+                <input style={{ ...S.input, marginBottom: 20 }} placeholder="e.g. From Instagram promo" value={saleForm.note} onChange={(e) => setSaleForm({ ...saleForm, note: e.target.value })} />
+
+                <button
+                  style={{ ...S.btn, ...(!saleForm.product || !saleForm.amount ? { opacity: 0.35, cursor: "not-allowed" } : {}) }}
+                  disabled={!saleForm.product || !saleForm.amount}
+                  onClick={addSale}
+                >
+                  Log Sale
+                </button>
+
+                {activeMonth.sales?.length > 0 && (
+                  <div style={{ marginTop: 28 }}>
+                    <p style={{ ...S.eyebrow, marginBottom: 12 }}>Recent Sales</p>
+                    {[...activeMonth.sales].reverse().slice(0, 10).map((s) => (
+                      <div key={s.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 0", borderBottom: `1px solid ${c.light}` }}>
+                        <div>
+                          <p style={{ fontSize: 13, fontWeight: 600, color: c.brown, margin: "0 0 2px" }}>{s.product}</p>
+                          <p style={{ fontSize: 11, color: c.muted, margin: 0 }}>{s.note || new Date(s.date).toLocaleDateString()}</p>
+                        </div>
+                        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                          <p style={{ fontFamily: "'Lora', serif", fontSize: 16, fontWeight: 700, color: c.brown, margin: 0 }}>{formatCurrency(s.amount)}</p>
+                          <button style={{ ...S.btnGhost, color: "#b07070", padding: "4px 8px" }} onClick={() => removeSale(s.id)}>✕</button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {logMode === "weekly" && (
+              <div style={S.card}>
+                <p style={S.eyebrow}>Enter Weekly Total</p>
+                <p style={{ fontSize: 13, color: "#6b5a4e", lineHeight: 1.7, marginBottom: 20 }}>
+                  Use this if you prefer to log your income by week rather than sale by sale. This is added on top of any individual sales you have already logged.
+                </p>
+                <label style={S.label}>Week</label>
+                <select style={{ ...S.select, marginBottom: 16 }} value={weekForm.week} onChange={(e) => setWeekForm({ ...weekForm, week: e.target.value })}>
+                  <option value="w1">Week 1</option>
+                  <option value="w2">Week 2</option>
+                  <option value="w3">Week 3</option>
+                  <option value="w4">Week 4</option>
+                </select>
+                <label style={S.label}>Total Revenue This Week</label>
+                <div style={{ position: "relative", marginBottom: 20 }}>
+                  <span style={{ position: "absolute", left: 14, top: "50%", transform: "translateY(-50%)", color: c.muted, fontWeight: 600 }}>$</span>
+                  <input style={{ ...S.input, paddingLeft: 28 }} type="number" placeholder="0.00" value={weekForm.amount} onChange={(e) => setWeekForm({ ...weekForm, amount: e.target.value })} />
+                </div>
+                <button style={{ ...S.btn, ...(!weekForm.amount ? { opacity: 0.35, cursor: "not-allowed" } : {}) }} disabled={!weekForm.amount} onClick={saveWeekly}>Save Weekly Total</button>
+
+                <div style={{ marginTop: 28 }}>
+                  <p style={{ ...S.eyebrow, marginBottom: 12 }}>Current Weekly Totals</p>
+                  {["w1","w2","w3","w4"].map((wk, i) => (
+                    <div key={wk} style={{ display: "flex", justifyContent: "space-between", padding: "10px 0", borderBottom: `1px solid ${c.light}` }}>
+                      <p style={{ fontSize: 13, fontWeight: 600, color: c.brown, margin: 0 }}>Week {i + 1}</p>
+                      <p style={{ fontSize: 14, fontWeight: 700, color: activeMonth.weeklyTotals?.[wk] ? c.brown : c.muted, margin: 0 }}>
+                        {activeMonth.weeklyTotals?.[wk] ? formatCurrency(activeMonth.weeklyTotals[wk]) : "Not logged"}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </>
+        )}
+
+        {/* HISTORY VIEW */}
+        {view === "history" && (
+          <div style={S.card}>
+            <p style={S.eyebrow}>Month Over Month</p>
+            {monthKeys.length < 2 && (
+              <p style={{ fontSize: 14, color: c.muted, lineHeight: 1.7 }}>Your history will appear here once you have tracked more than one month. Keep logging and check back.</p>
+            )}
+            {monthKeys.map((key, i) => {
+              const m = store.months[key];
+              const mSales = m.sales?.reduce((a, s) => a + parseFloat(s.amount || 0), 0) || 0;
+              const mWeekly = Object.values(m.weeklyTotals || {}).reduce((a, v) => a + parseFloat(v || 0), 0);
+              const mTotal = mSales + mWeekly;
+              const mGoal = parseFloat(m.goal || 0);
+              const mPct = mGoal > 0 ? Math.min(100, Math.round((mTotal / mGoal) * 100)) : 0;
+              const prevM = i > 0 ? store.months[monthKeys[i - 1]] : null;
+              const prevT = prevM ? (prevM.sales?.reduce((a, s) => a + parseFloat(s.amount || 0), 0) || 0) + Object.values(prevM.weeklyTotals || {}).reduce((a, v) => a + parseFloat(v || 0), 0) : null;
+              const gr = prevT !== null && prevT > 0 ? Math.round(((mTotal - prevT) / prevT) * 100) : null;
+              const isActive = key === store.activeMonth;
+              return (
+                <div key={key} style={{ padding: "18px 0", borderBottom: i < monthKeys.length - 1 ? `1px solid ${c.light}` : "none" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 10 }}>
+                    <div>
+                      <p style={{ fontSize: 14, fontWeight: 700, color: c.brown, margin: "0 0 2px" }}>
+                        {formatMonthKey(key)} {isActive && <span style={{ fontSize: 10, background: c.sage, color: c.offwhite, borderRadius: 6, padding: "2px 8px", marginLeft: 6, fontWeight: 700 }}>Current</span>}
+                      </p>
+                      <p style={{ fontSize: 12, color: c.muted, margin: 0 }}>Goal: {formatCurrencyShort(mGoal)}</p>
+                    </div>
+                    <div style={{ textAlign: "right" }}>
+                      <p style={{ fontFamily: "'Lora', serif", fontSize: 22, fontWeight: 700, color: c.brown, margin: "0 0 2px" }}>{formatCurrencyShort(mTotal)}</p>
+                      {gr !== null && <p style={{ fontSize: 12, fontWeight: 700, color: gr >= 0 ? c.sage : "#e08080", margin: 0 }}>{gr >= 0 ? "+" : ""}{gr}% vs prior month</p>}
+                    </div>
+                  </div>
+                  <div style={{ height: 5, borderRadius: 5, background: c.light, overflow: "hidden" }}>
+                    <div style={{ height: "100%", width: `${mPct}%`, background: isActive ? c.sage : c.taupe, borderRadius: 5 }} />
+                  </div>
+                  <p style={{ fontSize: 11, color: c.muted, margin: "6px 0 0" }}>{mPct}% of goal</p>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+
+const domContainer = document.getElementById('root');
+const root = ReactDOM.createRoot(domContainer);
+root.render(React.createElement(IncomeDashboard));
+</script>
+</body>
+</html>

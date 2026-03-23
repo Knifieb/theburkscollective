@@ -1,0 +1,448 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Price Ladder Builder | The Burks Collective</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.2/babel.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,600;0,700;1,400;1,600&family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: 'Poppins', sans-serif; background: #F0EDE8; }
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+const { useState, useEffect, useRef } = React;
+
+
+const STORAGE_KEY = "burks_price_ladder";
+
+const DEFAULT_RUNGS = [
+  {
+    id: "freebie",
+    level: "Freebie / Lead Magnet",
+    priceLabel: "Free",
+    price: 0,
+    priceFixed: true,
+    placeholder: "e.g. What Can I Monetize Right Now Workbook",
+    description: "",
+    purpose: "This is the door. Your freebie exists for one reason: to bring the right person into your world and give them a taste of how you think and teach. It should solve one small, specific problem and leave them wanting the next step.",
+    feedsInto: "When someone downloads your freebie and gets a result, they are primed to invest in your low-ticket offer. This is where trust becomes a transaction.",
+    color: "#8A9E8C",
+    icon: "○",
+    conversionNote: "Aim to convert 20 to 30% of your email list to your low-ticket offer over time.",
+  },
+  {
+    id: "low",
+    level: "Low-Ticket Offer",
+    priceLabel: "$9 to $47",
+    price: 27,
+    priceFixed: false,
+    placeholder: "e.g. The Blueprint",
+    description: "",
+    purpose: "Your low-ticket offer removes the risk of buying from you for the first time. It should be focused, fast to implement, and deliver a clear win. The goal is not to make a fortune here. The goal is to turn a subscriber into a buyer.",
+    feedsInto: "A buyer who got results from your low-ticket offer is your warmest lead for your mid-ticket offer. They already trust you. They just need to know what is next.",
+    color: "#C4A882",
+    icon: "◇",
+    conversionNote: "Aim to convert 15 to 25% of low-ticket buyers to your mid-ticket offer.",
+  },
+  {
+    id: "mid",
+    level: "Mid-Ticket Offer",
+    priceLabel: "$47 to $197",
+    price: 97,
+    priceFixed: false,
+    placeholder: "e.g. From Experience to Income: The Complete Toolkit",
+    description: "",
+    purpose: "Your mid-ticket offer goes deeper. It solves a bigger problem, takes more time to implement, and delivers a more significant transformation. This is where your expertise becomes undeniable. Price it at what it is worth, not what feels safe.",
+    feedsInto: "Buyers who complete your mid-ticket offer and see results are the most likely candidates for your flagship. They know your work. They trust your process. They are ready for more.",
+    color: "#3D1C02",
+    icon: "◈",
+    conversionNote: "Aim to convert 10 to 20% of mid-ticket buyers to your flagship offer.",
+  },
+  {
+    id: "flagship",
+    level: "Flagship Offer",
+    priceLabel: "$197 to $497",
+    price: 297,
+    priceFixed: false,
+    placeholder: "e.g. Passive Income and Prosperity Mentorship",
+    description: "",
+    purpose: "Your flagship is your most complete offer. It represents the full transformation you help people achieve and is priced to reflect that. This is where your income goal lives. Everything below this exists to build the relationship that makes this sale feel like a natural next step.",
+    feedsInto: "Your flagship buyer is your most engaged community member and your best testimonial. They are also the most likely to refer others and return for future offers.",
+    color: "#2C2C2C",
+    icon: "◉",
+    conversionNote: "Even a small number of flagship sales each month can significantly move your income goal.",
+  },
+];
+
+const formatCurrency = (n) => {
+  if (n === 0) return "Free";
+  return "$" + Number(n).toLocaleString();
+};
+
+function PriceLadderBuilder() {
+  const [data, setData] = useState(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEY);
+      if (saved) return JSON.parse(saved);
+    } catch {}
+    return {
+      started: false,
+      businessName: "",
+      rungs: DEFAULT_RUNGS.map((r) => ({ id: r.id, name: "", description: "", price: r.price })),
+    };
+  });
+
+  const [activeRung, setActiveRung] = useState("freebie");
+  const [nameInput, setNameInput] = useState(data.businessName || "");
+  const [viewMode, setViewMode] = useState("build"); // build | overview
+
+  useEffect(() => {
+    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(data)); } catch {}
+  }, [data]);
+
+  const updateRung = (id, field, value) => {
+    setData((prev) => ({
+      ...prev,
+      rungs: prev.rungs.map((r) => r.id === id ? { ...r, [field]: value } : r),
+    }));
+  };
+
+  const getRungData = (id) => data.rungs.find((r) => r.id === id) || {};
+  const getDefault = (id) => DEFAULT_RUNGS.find((r) => r.id === id);
+
+  const completedRungs = data.rungs.filter((r) => r.name.trim()).length;
+  const allComplete = completedRungs === DEFAULT_RUNGS.length;
+
+  const c = {
+    cream: "#F0EDE8", sage: "#8A9E8C", brown: "#3D1C02",
+    taupe: "#C4A882", offwhite: "#FAF8F5",
+    muted: "#A89880", border: "#E0D9D1", light: "#EDE8E2",
+    charcoal: "#2C2C2C",
+  };
+
+  const S = {
+    wrap: { minHeight: "100vh", background: c.cream, fontFamily: "'Poppins', sans-serif", padding: "0 16px 80px" },
+    inner: { maxWidth: 700, margin: "0 auto" },
+    header: { paddingTop: 40, paddingBottom: 24, borderBottom: `1px solid ${c.taupe}`, marginBottom: 36 },
+    brandLabel: { fontFamily: "'Lora', serif", fontSize: 13, color: c.taupe, letterSpacing: "0.06em", marginBottom: 4 },
+    pageTitle: { fontFamily: "'Lora', serif", fontSize: 28, fontWeight: 700, color: c.brown, margin: "0 0 6px" },
+    pageSub: { fontSize: 13, color: "#6b5a4e", margin: 0, lineHeight: 1.6 },
+    eyebrow: { fontSize: 11, letterSpacing: "0.16em", textTransform: "uppercase", color: c.sage, fontWeight: 700, marginBottom: 14 },
+    card: { background: c.offwhite, borderRadius: 16, padding: "32px 36px", boxShadow: "0 2px 20px rgba(61,28,2,0.06)", marginBottom: 20 },
+    label: { display: "block", fontSize: 13, fontWeight: 600, color: c.brown, marginBottom: 6, letterSpacing: "0.03em" },
+    sublabel: { display: "block", fontSize: 12, color: c.muted, marginBottom: 12, lineHeight: 1.5 },
+    input: { width: "100%", padding: "13px 16px", borderRadius: 10, border: `2px solid ${c.border}`, background: c.cream, fontSize: 14, fontFamily: "'Poppins', sans-serif", color: c.brown, outline: "none", boxSizing: "border-box" },
+    textarea: { width: "100%", padding: "13px 16px", borderRadius: 10, border: `2px solid ${c.border}`, background: c.cream, fontSize: 14, fontFamily: "'Poppins', sans-serif", color: c.brown, outline: "none", boxSizing: "border-box", resize: "vertical", minHeight: 80, lineHeight: 1.6 },
+    btn: { background: c.brown, color: c.offwhite, border: "none", borderRadius: 10, padding: "13px 28px", fontSize: 13, fontWeight: 600, fontFamily: "'Poppins', sans-serif", cursor: "pointer", letterSpacing: "0.04em" },
+    btnOutline: { background: "transparent", color: c.brown, border: `2px solid ${c.brown}`, borderRadius: 10, padding: "11px 24px", fontSize: 13, fontWeight: 600, fontFamily: "'Poppins', sans-serif", cursor: "pointer" },
+    btnGhost: { background: "transparent", color: c.muted, border: `1px solid ${c.border}`, borderRadius: 8, padding: "7px 14px", fontSize: 11, fontWeight: 600, fontFamily: "'Poppins', sans-serif", cursor: "pointer" },
+    btnSage: { background: c.sage, color: c.offwhite, border: "none", borderRadius: 10, padding: "13px 28px", fontSize: 13, fontWeight: 600, fontFamily: "'Poppins', sans-serif", cursor: "pointer" },
+  };
+
+  // Intro
+  if (!data.started) {
+    return (
+      <div style={S.wrap}>
+        <link href="https://fonts.googleapis.com/css2?family=Lora:wght@400;600;700&family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+        <div style={S.inner}>
+          <div style={S.header}>
+            <p style={S.brandLabel}>The Burks Collective</p>
+            <h1 style={S.pageTitle}>Price Ladder Builder</h1>
+            <p style={S.pageSub}>Map your offers from freebie to flagship so every product you create leads your buyer to the next step.</p>
+          </div>
+
+          <div style={S.card}>
+            <p style={S.eyebrow}>How This Works</p>
+            <p style={{ fontSize: 15, color: c.brown, lineHeight: 1.8, marginBottom: 20 }}>
+              A price ladder is not just a list of your products. It is a relationship map. Each offer exists to serve your buyer at a specific level of readiness and trust, and to prepare them for the next investment when they are ready.
+            </p>
+            <p style={{ fontSize: 14, color: "#6b5a4e", lineHeight: 1.7, marginBottom: 28 }}>
+              You will build four rungs: a freebie, a low-ticket offer, a mid-ticket offer, and a flagship. For each one you will name the offer, set the price, and add a short description. The tool will show you how each rung connects to the next.
+            </p>
+
+            {DEFAULT_RUNGS.map((r, i) => (
+              <div key={r.id} style={{ display: "flex", gap: 16, padding: "14px 0", borderBottom: i < DEFAULT_RUNGS.length - 1 ? `1px solid ${c.light}` : "none" }}>
+                <div style={{ width: 32, height: 32, borderRadius: "50%", background: r.color, display: "flex", alignItems: "center", justifyContent: "center", color: c.offwhite, fontSize: 14, flexShrink: 0 }}>{r.icon}</div>
+                <div>
+                  <p style={{ fontSize: 14, fontWeight: 700, color: c.brown, margin: "0 0 2px" }}>{r.level}</p>
+                  <p style={{ fontSize: 12, color: c.muted, margin: 0 }}>{r.priceLabel}</p>
+                </div>
+              </div>
+            ))}
+
+            <div style={{ marginTop: 32 }}>
+              <label style={S.label}>Your name or brand name</label>
+              <input
+                style={{ ...S.input, marginBottom: 24 }}
+                placeholder="e.g. The Burks Collective"
+                value={nameInput}
+                onChange={(e) => setNameInput(e.target.value)}
+              />
+              <button
+                style={{ ...S.btn, ...(!nameInput.trim() ? { opacity: 0.35, cursor: "not-allowed" } : {}) }}
+                disabled={!nameInput.trim()}
+                onClick={() => setData((prev) => ({ ...prev, started: true, businessName: nameInput.trim() }))}
+              >
+                Build My Ladder
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Build View
+  if (viewMode === "build") {
+    const def = getDefault(activeRung);
+    const rung = getRungData(activeRung);
+    const activeIndex = DEFAULT_RUNGS.findIndex((r) => r.id === activeRung);
+
+    return (
+      <div style={S.wrap}>
+        <link href="https://fonts.googleapis.com/css2?family=Lora:wght@400;600;700&family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+        <div style={S.inner}>
+          <div style={S.header}>
+            <p style={S.brandLabel}>The Burks Collective</p>
+            <h1 style={S.pageTitle}>Price Ladder Builder</h1>
+            <p style={S.pageSub}>{data.businessName}</p>
+          </div>
+
+          {/* Progress */}
+          <div style={{ display: "flex", gap: 8, marginBottom: 24, alignItems: "center" }}>
+            {DEFAULT_RUNGS.map((r, i) => {
+              const rd = getRungData(r.id);
+              const isActive = r.id === activeRung;
+              const isDone = rd.name.trim();
+              return (
+                <button key={r.id} onClick={() => setActiveRung(r.id)} style={{
+                  flex: 1, padding: "10px 8px", borderRadius: 10,
+                  border: isActive ? `2px solid ${r.color}` : `2px solid ${isDone ? r.color : c.border}`,
+                  background: isActive ? r.color : isDone ? `${r.color}18` : c.offwhite,
+                  color: isActive ? c.offwhite : c.brown,
+                  fontSize: 11, fontWeight: 700, fontFamily: "'Poppins', sans-serif", cursor: "pointer",
+                  display: "flex", flexDirection: "column", alignItems: "center", gap: 3,
+                }}>
+                  <span style={{ fontSize: 14 }}>{isDone && !isActive ? "✓" : r.icon}</span>
+                  <span style={{ fontSize: 10, lineHeight: 1.3, textAlign: "center" }}>{r.level.split(" ").slice(0, 2).join(" ")}</span>
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Active Rung Card */}
+          <div style={{ ...S.card, borderTop: `4px solid ${def.color}` }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 20 }}>
+              <div>
+                <p style={{ ...S.eyebrow, color: def.color }}>{def.level}</p>
+                <p style={{ fontFamily: "'Lora', serif", fontSize: 20, fontWeight: 700, color: c.brown, margin: 0 }}>{def.priceLabel}</p>
+              </div>
+              <div style={{ width: 44, height: 44, borderRadius: "50%", background: def.color, display: "flex", alignItems: "center", justifyContent: "center", color: c.offwhite, fontSize: 20 }}>{def.icon}</div>
+            </div>
+
+            <div style={{ background: c.cream, borderRadius: 10, padding: "16px 18px", marginBottom: 24, borderLeft: `3px solid ${def.color}` }}>
+              <p style={{ fontSize: 13, color: "#6b5a4e", lineHeight: 1.7, margin: 0 }}>{def.purpose}</p>
+            </div>
+
+            <label style={S.label}>Offer Name</label>
+            <span style={S.sublabel}>What is this offer called?</span>
+            <input
+              style={{ ...S.input, marginBottom: 20 }}
+              placeholder={def.placeholder}
+              value={rung.name || ""}
+              onChange={(e) => updateRung(activeRung, "name", e.target.value)}
+            />
+
+            {!def.priceFixed && (
+              <>
+                <label style={S.label}>Price</label>
+                <span style={S.sublabel}>Set your price within the suggested range.</span>
+                <div style={{ position: "relative", marginBottom: 20 }}>
+                  <span style={{ position: "absolute", left: 14, top: "50%", transform: "translateY(-50%)", fontSize: 15, color: c.muted, fontWeight: 600 }}>$</span>
+                  <input
+                    style={{ ...S.input, paddingLeft: 28 }}
+                    type="number"
+                    placeholder={String(def.price)}
+                    value={rung.price || ""}
+                    onChange={(e) => updateRung(activeRung, "price", e.target.value)}
+                  />
+                </div>
+              </>
+            )}
+
+            <label style={S.label}>Short Description</label>
+            <span style={S.sublabel}>One to two sentences. What does this offer do for your buyer?</span>
+            <textarea
+              style={{ ...S.textarea, marginBottom: 28 }}
+              placeholder="e.g. A step-by-step workbook that helps women 40+ identify the knowledge they already have and turn it into a sellable digital product."
+              value={rung.description || ""}
+              onChange={(e) => updateRung(activeRung, "description", e.target.value)}
+            />
+
+            {/* Feeds Into */}
+            {activeIndex < DEFAULT_RUNGS.length - 1 && (
+              <div style={{ background: c.offwhite, border: `1px solid ${c.light}`, borderRadius: 12, padding: "16px 20px", marginBottom: 24 }}>
+                <p style={{ fontSize: 11, fontWeight: 700, color: c.sage, letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 8 }}>How This Feeds Into Your Next Offer</p>
+                <p style={{ fontSize: 13, color: "#6b5a4e", lineHeight: 1.7, margin: "0 0 10px" }}>{def.feedsInto}</p>
+                <p style={{ fontSize: 12, color: c.taupe, fontWeight: 600, margin: 0 }}>{def.conversionNote}</p>
+              </div>
+            )}
+
+            <div style={{ display: "flex", gap: 12 }}>
+              {activeIndex > 0 && (
+                <button style={S.btnGhost} onClick={() => setActiveRung(DEFAULT_RUNGS[activeIndex - 1].id)}>Back</button>
+              )}
+              {activeIndex < DEFAULT_RUNGS.length - 1 && (
+                <button
+                  style={{ ...S.btn, ...(!rung.name?.trim() ? { opacity: 0.35, cursor: "not-allowed" } : {}) }}
+                  disabled={!rung.name?.trim()}
+                  onClick={() => setActiveRung(DEFAULT_RUNGS[activeIndex + 1].id)}
+                >
+                  Next Rung
+                </button>
+              )}
+              {activeIndex === DEFAULT_RUNGS.length - 1 && (
+                <button
+                  style={{ ...S.btnSage, ...(!rung.name?.trim() ? { opacity: 0.35, cursor: "not-allowed" } : {}) }}
+                  disabled={!rung.name?.trim()}
+                  onClick={() => setViewMode("overview")}
+                >
+                  View My Full Ladder
+                </button>
+              )}
+            </div>
+
+            {allComplete && activeIndex < DEFAULT_RUNGS.length - 1 && (
+              <button style={{ ...S.btnSage, marginTop: 12 }} onClick={() => setViewMode("overview")}>
+                View My Full Ladder
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Overview
+  if (viewMode === "overview") {
+    return (
+      <div style={S.wrap}>
+        <link href="https://fonts.googleapis.com/css2?family=Lora:wght@400;600;700&family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+        <div style={S.inner}>
+          <div style={S.header}>
+            <button style={S.btnGhost} onClick={() => setViewMode("build")}>← Edit Ladder</button>
+            <p style={{ ...S.brandLabel, marginTop: 16 }}>The Burks Collective</p>
+            <h1 style={S.pageTitle}>{data.businessName} Price Ladder</h1>
+            <p style={S.pageSub}>Your complete offer ecosystem from freebie to flagship.</p>
+          </div>
+
+          {/* Ladder Visual */}
+          {DEFAULT_RUNGS.map((def, i) => {
+            const rung = getRungData(def.id);
+            const hasOffer = rung.name?.trim();
+            const price = def.priceFixed ? 0 : (rung.price || def.price);
+            const nextDef = DEFAULT_RUNGS[i + 1];
+
+            return (
+              <div key={def.id}>
+                <div style={{
+                  background: c.offwhite,
+                  borderRadius: 16,
+                  padding: "24px 28px",
+                  boxShadow: "0 2px 16px rgba(61,28,2,0.06)",
+                  borderLeft: `5px solid ${def.color}`,
+                  opacity: hasOffer ? 1 : 0.5,
+                }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: hasOffer ? 12 : 0 }}>
+                    <div style={{ display: "flex", gap: 14, alignItems: "center" }}>
+                      <div style={{ width: 38, height: 38, borderRadius: "50%", background: def.color, display: "flex", alignItems: "center", justifyContent: "center", color: c.offwhite, fontSize: 16, flexShrink: 0 }}>{def.icon}</div>
+                      <div>
+                        <p style={{ fontSize: 11, fontWeight: 700, color: def.color, letterSpacing: "0.1em", textTransform: "uppercase", margin: "0 0 2px" }}>{def.level}</p>
+                        <p style={{ fontFamily: "'Lora', serif", fontSize: 18, fontWeight: 700, color: c.brown, margin: 0 }}>
+                          {hasOffer ? rung.name : "Not filled in yet"}
+                        </p>
+                      </div>
+                    </div>
+                    <p style={{ fontFamily: "'Lora', serif", fontSize: 22, fontWeight: 700, color: def.color, margin: 0, flexShrink: 0 }}>
+                      {def.priceFixed ? "Free" : formatCurrency(price)}
+                    </p>
+                  </div>
+
+                  {rung.description?.trim() && (
+                    <p style={{ fontSize: 13, color: "#6b5a4e", lineHeight: 1.7, margin: "0 0 0 52px" }}>{rung.description}</p>
+                  )}
+                </div>
+
+                {/* Connector */}
+                {nextDef && (
+                  <div style={{ display: "flex", flexDirection: "column", alignItems: "center", padding: "4px 0", gap: 2 }}>
+                    <div style={{ width: 2, height: 16, background: c.border }} />
+                    <div style={{ background: c.cream, border: `1px solid ${c.border}`, borderRadius: 20, padding: "5px 14px", maxWidth: 400 }}>
+                      <p style={{ fontSize: 11, color: c.muted, textAlign: "center", margin: 0, lineHeight: 1.5 }}>
+                        {def.feedsInto.split(".")[0]}.
+                      </p>
+                    </div>
+                    <div style={{ width: 2, height: 16, background: c.border }} />
+                    <div style={{ width: 0, height: 0, borderLeft: "6px solid transparent", borderRight: "6px solid transparent", borderTop: `8px solid ${c.border}` }} />
+                  </div>
+                )}
+              </div>
+            );
+          })}
+
+          {/* Summary Card */}
+          <div style={{ ...S.card, background: c.brown, marginTop: 24 }}>
+            <p style={{ fontSize: 11, letterSpacing: "0.16em", textTransform: "uppercase", color: c.taupe, fontWeight: 700, marginBottom: 16 }}>Your Ladder at a Glance</p>
+            <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+              {DEFAULT_RUNGS.map((def) => {
+                const rung = getRungData(def.id);
+                const price = def.priceFixed ? 0 : (rung.price || def.price);
+                return (
+                  <div key={def.id} style={{ flex: 1, minWidth: 120, background: "rgba(255,255,255,0.07)", borderRadius: 10, padding: "14px 16px" }}>
+                    <p style={{ fontSize: 10, color: c.taupe, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", margin: "0 0 6px" }}>{def.level.split(" ")[0]}</p>
+                    <p style={{ fontFamily: "'Lora', serif", fontSize: 20, fontWeight: 700, color: c.offwhite, margin: "0 0 4px" }}>{def.priceFixed ? "Free" : formatCurrency(price)}</p>
+                    <p style={{ fontSize: 11, color: "rgba(240,237,232,0.6)", margin: 0, lineHeight: 1.4 }}>{rung.name?.trim() || "Not set"}</p>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Next Step */}
+          <div style={{ ...S.card, borderLeft: `4px solid ${c.sage}` }}>
+            <p style={{ ...S.eyebrow, marginBottom: 8 }}>Your Next Step</p>
+            <p style={{ fontSize: 15, fontWeight: 600, color: c.brown, margin: "0 0 8px" }}>
+              Move into the Momentum Machine.
+            </p>
+            <p style={{ fontSize: 14, color: "#6b5a4e", lineHeight: 1.7, margin: 0 }}>
+              You have your ladder. Now it is time to build the visibility plan that puts your offers in front of the right people consistently. Head to Module 4 to map your 30-Day Visibility Plan.
+            </p>
+          </div>
+
+          <div style={{ display: "flex", gap: 14 }}>
+            <button style={S.btnOutline} onClick={() => setViewMode("build")}>Edit My Ladder</button>
+            <button style={S.btnGhost} onClick={() => { setData({ started: false, businessName: "", rungs: DEFAULT_RUNGS.map((r) => ({ id: r.id, name: "", description: "", price: r.price })) }); setViewMode("build"); try { localStorage.removeItem(STORAGE_KEY); } catch {} }}>
+              Start Over
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return null;
+}
+
+
+const domContainer = document.getElementById('root');
+const root = ReactDOM.createRoot(domContainer);
+root.render(React.createElement(PriceLadderBuilder));
+</script>
+</body>
+</html>

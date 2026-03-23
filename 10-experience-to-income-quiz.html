@@ -1,0 +1,443 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>From Experience to Income: Find Your Starting Point | The Burks Collective</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.2/babel.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,600;0,700;1,400;1,600&family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: 'Poppins', sans-serif; background: #F0EDE8; }
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+const { useState, useEffect, useRef } = React;
+
+
+const STORAGE_KEY = "burks_quiz";
+
+const QUESTIONS = [
+  {
+    id: "q1",
+    question: "How long have you been sitting on the idea of turning your knowledge into a digital product?",
+    options: [
+      { text: "I just started thinking about it", scores: { ready: 2, stalled: 0, busy: 0, relauncher: 0, overlooked: 1 } },
+      { text: "A few months but I have not done anything yet", scores: { ready: 0, stalled: 2, busy: 0, relauncher: 0, overlooked: 1 } },
+      { text: "Over a year and it still has not happened", scores: { ready: 0, stalled: 1, busy: 1, relauncher: 0, overlooked: 2 } },
+      { text: "I tried once before but it did not work out the way I planned", scores: { ready: 0, stalled: 0, busy: 0, relauncher: 3, overlooked: 0 } },
+    ],
+  },
+  {
+    id: "q2",
+    question: "When someone asks what you do, what is your honest first reaction?",
+    options: [
+      { text: "I help people but I struggle to explain exactly what I offer", scores: { ready: 0, stalled: 1, busy: 0, relauncher: 0, overlooked: 3 } },
+      { text: "I know what I do but I am still figuring out how to make money from it", scores: { ready: 1, stalled: 2, busy: 0, relauncher: 0, overlooked: 0 } },
+      { text: "I am so busy doing the work that I barely have time to think about it", scores: { ready: 0, stalled: 0, busy: 3, relauncher: 0, overlooked: 0 } },
+      { text: "I have a clear idea but I need a structure to bring it together", scores: { ready: 3, stalled: 0, busy: 0, relauncher: 0, overlooked: 0 } },
+    ],
+  },
+  {
+    id: "q3",
+    question: "What is the real thing stopping you from building your digital product right now?",
+    options: [
+      { text: "I keep overthinking and second-guessing whether my idea is good enough", scores: { ready: 0, stalled: 2, busy: 0, relauncher: 1, overlooked: 2 } },
+      { text: "I do not have enough time. My calendar is already full", scores: { ready: 0, stalled: 0, busy: 3, relauncher: 0, overlooked: 0 } },
+      { text: "I am not sure what to build or how to package what I know", scores: { ready: 0, stalled: 1, busy: 0, relauncher: 0, overlooked: 3 } },
+      { text: "I need a clear step-by-step plan so I stop spinning and start moving", scores: { ready: 3, stalled: 1, busy: 0, relauncher: 1, overlooked: 0 } },
+    ],
+  },
+  {
+    id: "q4",
+    question: "What do you want most from creating a digital product?",
+    options: [
+      { text: "I want my time back. I am done trading hours for dollars", scores: { ready: 1, stalled: 0, busy: 3, relauncher: 0, overlooked: 0 } },
+      { text: "I want income that does not require me to show up every single day", scores: { ready: 2, stalled: 1, busy: 1, relauncher: 1, overlooked: 0 } },
+      { text: "I want to finally prove to myself that my knowledge has real value", scores: { ready: 0, stalled: 1, busy: 0, relauncher: 1, overlooked: 3 } },
+      { text: "I want to get it right this time and build something that actually sells", scores: { ready: 0, stalled: 0, busy: 0, relauncher: 3, overlooked: 0 } },
+    ],
+  },
+  {
+    id: "q5",
+    question: "How would you describe where you are with your idea right now?",
+    options: [
+      { text: "It is all in my head. I have not written anything down yet", scores: { ready: 0, stalled: 1, busy: 1, relauncher: 0, overlooked: 2 } },
+      { text: "I have notes and ideas but nothing organized or close to finished", scores: { ready: 1, stalled: 2, busy: 1, relauncher: 0, overlooked: 0 } },
+      { text: "I have a clear concept and I am ready to build if someone shows me how", scores: { ready: 3, stalled: 0, busy: 0, relauncher: 1, overlooked: 0 } },
+      { text: "I had something built before but I am starting over or starting fresh", scores: { ready: 0, stalled: 0, busy: 0, relauncher: 3, overlooked: 0 } },
+    ],
+  },
+  {
+    id: "q6",
+    question: "What does your current relationship with income look like?",
+    options: [
+      { text: "I am still in a job and want to build something on the side", scores: { ready: 1, stalled: 1, busy: 2, relauncher: 0, overlooked: 0 } },
+      { text: "I am already doing some work for myself but it is not consistent or passive", scores: { ready: 1, stalled: 0, busy: 3, relauncher: 0, overlooked: 0 } },
+      { text: "I have income but it depends entirely on me showing up. There is nothing working while I rest", scores: { ready: 2, stalled: 0, busy: 2, relauncher: 0, overlooked: 0 } },
+      { text: "I tried building something before and it did not generate what I expected", scores: { ready: 0, stalled: 0, busy: 0, relauncher: 3, overlooked: 0 } },
+    ],
+  },
+  {
+    id: "q7",
+    question: "If you had everything you needed to start tomorrow, what would hold you back?",
+    options: [
+      { text: "Honestly? Nothing. I just need the right system and I will move", scores: { ready: 3, stalled: 0, busy: 0, relauncher: 1, overlooked: 0 } },
+      { text: "Fear that no one will buy or that I am not credible enough to charge", scores: { ready: 0, stalled: 2, busy: 0, relauncher: 1, overlooked: 2 } },
+      { text: "Not knowing how to find the time to build without burning out", scores: { ready: 0, stalled: 0, busy: 3, relauncher: 0, overlooked: 0 } },
+      { text: "Not being sure my idea is clear enough or different enough to sell", scores: { ready: 0, stalled: 1, busy: 0, relauncher: 1, overlooked: 3 } },
+    ],
+  },
+];
+
+const PROFILES = {
+  overlooked: {
+    type: "The Overlooked Expert",
+    tagline: "You know more than you think. It is time people paid for it.",
+    color: "#8A9E8C",
+    icon: "◈",
+    description: "You have spent years building expertise that other people rely on every single day. You are the person friends and colleagues call when they need real answers. But somewhere along the way you convinced yourself that what you know is not special enough to sell, not organized enough to package, or not different enough to charge for. None of that is true. Your knowledge has been hiding in plain sight and the toolkit will help you finally see it, name it, and turn it into something people will pay for.",
+    stuck: "You are not stuck because of lack of knowledge. You are stuck because you have never been shown how to look at your own experience as a product.",
+    needs: "You need a structured way to inventory what you already know and a clear framework for turning that knowledge into an offer.",
+    toolkitEntry: "Start with the Experience to Income Blueprint in Module 6. It will surface everything you have been taking for granted and turn it into up to three offer ideas you can build from.",
+  },
+  stalled: {
+    type: "The Stalled Starter",
+    tagline: "The idea is not the problem. The loop is.",
+    color: "#C4A882",
+    icon: "◇",
+    description: "You have been thinking about this for a while. You probably have notes somewhere, maybe even a half-built outline. But something keeps pulling you back before you finish. Maybe it is perfectionism. Maybe it is fear that it will not be good enough or will not sell. Maybe you just keep waiting until the timing is right. The timing will not get more right. What you need is not more thinking. It is a clear structure that moves you from idea to done without giving you a chance to talk yourself out of it.",
+    stuck: "You are not stuck because of lack of motivation. You are stuck in a loop of preparing without progressing.",
+    needs: "You need a step-by-step build system with clear milestones that make stopping feel harder than finishing.",
+    toolkitEntry: "Start with the Stop Spinning Worksheet in Module 1 and move directly into the Product Creation Tracker in Module 2. Those two tools together will break the loop.",
+  },
+  busy: {
+    type: "The Busy Builder",
+    tagline: "You cannot pour from a calendar that is already full. It is time to build something that works while you rest.",
+    color: "#8A9E8C",
+    icon: "○",
+    description: "You are already doing the work. You are already helping people and generating income. But it is all tied to your time and your presence. If you stop, it stops. You have been meaning to build something more scalable but the irony is that being busy keeps you from building the thing that would give you your time back. The toolkit is designed for women exactly like you. It will not add to your workload. It will show you how to build inside the time you already have.",
+    stuck: "You are not stuck because you lack drive. You are stuck because you are spending your best energy maintaining instead of building.",
+    needs: "You need a system that lets you build a product in focused, realistic windows of time without having to blow up what is already working.",
+    toolkitEntry: "Start with the Pricing Calculator and the 30-Day Visibility Planner. Together they will show you what one product could earn and how to promote it without adding chaos to your schedule.",
+  },
+  relauncher: {
+    type: "The Relauncher",
+    tagline: "What did not work before does not mean you were wrong. It means you needed better tools.",
+    color: "#3D1C02",
+    icon: "◉",
+    description: "You have been here before. You built something, put it out there, and it did not land the way you hoped. Maybe it barely sold. Maybe you got a handful of sales and then it went quiet. Maybe you never even finished the launch because something got in the way. Whatever happened, you walked away with more information than you realize. The toolkit will help you audit what did not work, sharpen what you are building next, and launch with a plan that gives it a real chance this time.",
+    stuck: "You are not stuck because you failed. You are stuck because no one helped you understand why it did not work or what to do differently.",
+    needs: "You need a clear framework for validation, pricing, and launching that accounts for what happened before and sets you up to do it differently.",
+    toolkitEntry: "Start with the Idea Validation Scorecard in Module 1 and the ROI Calculator in Module 5. They will help you diagnose what happened before and build smarter this time.",
+  },
+  ready: {
+    type: "The Ready Mover",
+    tagline: "You do not need more information. You need a system and a start date.",
+    color: "#8A9E8C",
+    icon: "◆",
+    description: "You are clear on what you want to build. You have the knowledge, the motivation, and the desire to make it happen. What you need is a structured path that takes you from where you are right now to a finished, priced, and launched product without the guesswork. You are not someone who needs to be convinced. You need to be organized and given the next right step. The toolkit was built for exactly that.",
+    stuck: "You are not really stuck. You are ready. The only thing between you and a launched product is a clear system to move through.",
+    needs: "You need a step-by-step framework that respects your readiness and moves you through creation, pricing, and launch without unnecessary detours.",
+    toolkitEntry: "Go straight to the Product Creation Tracker in Module 2. You are ready to build. Start there and let the rest of the toolkit support you as you move through each stage.",
+  },
+};
+
+const getProfile = (answers) => {
+  const totals = { overlooked: 0, stalled: 0, busy: 0, relauncher: 0, ready: 0 };
+  answers.forEach((ans) => {
+    if (!ans) return;
+    Object.entries(ans.scores).forEach(([k, v]) => { totals[k] += v; });
+  });
+  return Object.entries(totals).sort((a, b) => b[1] - a[1])[0][0];
+};
+
+function ExperienceQuiz() {
+  const [state, setState] = useState(() => {
+    try { const s = localStorage.getItem(STORAGE_KEY); if (s) return JSON.parse(s); } catch {}
+    return { screen: "intro", answers: [], currentQ: 0, name: "", email: "", profile: null };
+  });
+
+  useEffect(() => { try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); } catch {} }, [state]);
+
+  const set = (updates) => setState((prev) => ({ ...prev, ...updates }));
+
+  const selectAnswer = (option) => {
+    const answers = [...state.answers];
+    answers[state.currentQ] = option;
+    if (state.currentQ < QUESTIONS.length - 1) {
+      set({ answers, currentQ: state.currentQ + 1 });
+    } else {
+      set({ answers, screen: "capture" });
+    }
+  };
+
+  const goBack = () => {
+    if (state.currentQ > 0) set({ currentQ: state.currentQ - 1 });
+    else set({ screen: "intro" });
+  };
+
+  const showResults = () => {
+    if (!state.name.trim() || !state.email.trim()) return;
+    const profile = getProfile(state.answers);
+    set({ profile, screen: "results" });
+  };
+
+  const reset = () => {
+    setState({ screen: "intro", answers: [], currentQ: 0, name: "", email: "", profile: null });
+    try { localStorage.removeItem(STORAGE_KEY); } catch {}
+  };
+
+  const progress = Math.round((state.currentQ / QUESTIONS.length) * 100);
+  const profile = state.profile ? PROFILES[state.profile] : null;
+
+  const c = {
+    cream: "#F0EDE8", sage: "#8A9E8C", brown: "#3D1C02",
+    taupe: "#C4A882", offwhite: "#FAF8F5",
+    muted: "#A89880", border: "#E0D9D1", light: "#EDE8E2",
+  };
+
+  const S = {
+    wrap: { minHeight: "100vh", background: c.cream, fontFamily: "'Poppins', sans-serif", display: "flex", flexDirection: "column", alignItems: "center", padding: "0 16px 80px" },
+    inner: { width: "100%", maxWidth: 620 },
+    brandBar: { width: "100%", maxWidth: 620, paddingTop: 36, paddingBottom: 20, marginBottom: 8 },
+    brandLabel: { fontFamily: "'Lora', serif", fontSize: 13, color: c.taupe, letterSpacing: "0.06em" },
+    card: { background: c.offwhite, borderRadius: 20, padding: "40px 44px", boxShadow: "0 4px 32px rgba(61,28,2,0.08)", marginBottom: 16 },
+    eyebrow: { fontSize: 11, letterSpacing: "0.18em", textTransform: "uppercase", color: c.sage, fontWeight: 700, marginBottom: 12 },
+    btn: { background: c.brown, color: c.offwhite, border: "none", borderRadius: 12, padding: "15px 32px", fontSize: 14, fontWeight: 700, fontFamily: "'Poppins', sans-serif", cursor: "pointer", letterSpacing: "0.04em", width: "100%" },
+    btnOutline: { background: "transparent", color: c.brown, border: `2px solid ${c.brown}`, borderRadius: 12, padding: "13px 28px", fontSize: 14, fontWeight: 700, fontFamily: "'Poppins', sans-serif", cursor: "pointer", width: "100%" },
+    btnGhost: { background: "transparent", color: c.muted, border: `1px solid ${c.border}`, borderRadius: 8, padding: "7px 16px", fontSize: 12, fontWeight: 600, fontFamily: "'Poppins', sans-serif", cursor: "pointer" },
+    input: { width: "100%", padding: "14px 18px", borderRadius: 12, border: `2px solid ${c.border}`, background: c.cream, fontSize: 15, fontFamily: "'Poppins', sans-serif", color: c.brown, outline: "none", boxSizing: "border-box" },
+    optionBtn: (selected) => ({
+      width: "100%", textAlign: "left", padding: "16px 20px", borderRadius: 12,
+      border: selected ? `2px solid ${c.brown}` : `2px solid ${c.border}`,
+      background: selected ? c.cream : "transparent",
+      color: c.brown, fontSize: 14, fontFamily: "'Poppins', sans-serif",
+      cursor: "pointer", fontWeight: selected ? 600 : 400, lineHeight: 1.6,
+      transition: "all 0.15s ease", marginBottom: 10,
+      display: "block",
+    }),
+  };
+
+  // INTRO
+  if (state.screen === "intro") {
+    return (
+      <div style={S.wrap}>
+        <link href="https://fonts.googleapis.com/css2?family=Lora:wght@400;600;700&family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+        <div style={S.brandBar}><p style={S.brandLabel}>The Burks Collective</p></div>
+        <div style={{ ...S.inner }}>
+          <div style={{ ...S.card, textAlign: "center" }}>
+            <p style={{ ...S.eyebrow, textAlign: "center" }}>Free Quiz</p>
+            <h1 style={{ fontFamily: "'Lora', serif", fontSize: 28, fontWeight: 700, color: c.brown, lineHeight: 1.3, margin: "0 0 4px" }}>
+              From Experience to Income
+            </h1>
+            <p style={{ fontFamily: "'Lora', serif", fontSize: 18, fontWeight: 600, color: c.taupe, fontStyle: "italic", margin: "0 0 20px", lineHeight: 1.4 }}>
+              Find Your Starting Point
+            </p>
+            <p style={{ fontSize: 15, color: "#6b5a4e", lineHeight: 1.8, marginBottom: 12 }}>
+              7 questions. Less than 3 minutes. A result that tells you exactly where you are, what is keeping you stuck, and what to do first.
+            </p>
+            <p style={{ fontSize: 13, color: c.muted, lineHeight: 1.7, marginBottom: 32 }}>
+              This quiz is for women 40 and over who know they have something to offer and are ready to stop sitting on it.
+            </p>
+            <div style={{ display: "flex", gap: 20, justifyContent: "center", marginBottom: 36 }}>
+              {["7 Questions", "5 Profiles", "Free Results"].map((item, i) => (
+                <div key={i} style={{ textAlign: "center" }}>
+                  <p style={{ fontSize: 13, fontWeight: 700, color: c.brown, margin: "0 0 2px" }}>{item.split(" ")[0]}</p>
+                  <p style={{ fontSize: 11, color: c.muted, margin: 0 }}>{item.split(" ").slice(1).join(" ")}</p>
+                </div>
+              ))}
+            </div>
+            <button style={S.btn} onClick={() => set({ screen: "quiz", currentQ: 0 })}>
+              Find Out Where I Am
+            </button>
+            <p style={{ fontSize: 12, color: c.muted, marginTop: 16 }}>No fluff. No judgment. Just clarity.</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // QUIZ
+  if (state.screen === "quiz") {
+    const q = QUESTIONS[state.currentQ];
+    return (
+      <div style={S.wrap}>
+        <link href="https://fonts.googleapis.com/css2?family=Lora:wght@400;600;700&family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+        <div style={S.brandBar}><p style={S.brandLabel}>The Burks Collective</p></div>
+        <div style={S.inner}>
+
+          {/* Progress */}
+          <div style={{ marginBottom: 24 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, color: c.muted, fontWeight: 600, marginBottom: 8 }}>
+              <span>Question {state.currentQ + 1} of {QUESTIONS.length}</span>
+              <span>{progress}% complete</span>
+            </div>
+            <div style={{ height: 4, borderRadius: 4, background: c.light, overflow: "hidden" }}>
+              <div style={{ height: "100%", width: `${progress}%`, background: c.sage, borderRadius: 4, transition: "width 0.3s ease" }} />
+            </div>
+          </div>
+
+          <div style={S.card}>
+            <p style={S.eyebrow}>Question {state.currentQ + 1}</p>
+            <h2 style={{ fontFamily: "'Lora', serif", fontSize: 20, fontWeight: 700, color: c.brown, lineHeight: 1.4, marginBottom: 28 }}>
+              {q.question}
+            </h2>
+            <div>
+              {q.options.map((opt, i) => (
+                <button key={i} style={S.optionBtn(state.answers[state.currentQ] === opt)} onClick={() => selectAnswer(opt)}>
+                  {opt.text}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {state.currentQ > 0 && (
+            <div style={{ textAlign: "center" }}>
+              <button style={S.btnGhost} onClick={goBack}>Back</button>
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  // EMAIL CAPTURE
+  if (state.screen === "capture") {
+    const canSubmit = state.name.trim() && state.email.trim() && state.email.includes("@");
+    return (
+      <div style={S.wrap}>
+        <link href="https://fonts.googleapis.com/css2?family=Lora:wght@400;600;700&family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+        <div style={S.brandBar}><p style={S.brandLabel}>The Burks Collective</p></div>
+        <div style={S.inner}>
+          <div style={{ ...S.card, textAlign: "center" }}>
+            <div style={{ width: 60, height: 60, borderRadius: "50%", background: c.sage, display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 20px", fontSize: 24 }}>✓</div>
+            <p style={S.eyebrow}>You Are Almost There</p>
+            <h2 style={{ fontFamily: "'Lora', serif", fontSize: 24, fontWeight: 700, color: c.brown, lineHeight: 1.4, marginBottom: 12 }}>
+              Your results are ready.
+            </h2>
+            <p style={{ fontSize: 14, color: "#6b5a4e", lineHeight: 1.7, marginBottom: 28 }}>
+              Enter your name and email to see your profile and receive your personalized next steps guide straight to your inbox.
+            </p>
+            <div style={{ textAlign: "left" }}>
+              <label style={{ display: "block", fontSize: 13, fontWeight: 600, color: c.brown, marginBottom: 6 }}>First Name</label>
+              <input style={{ ...S.input, marginBottom: 16 }} placeholder="Your first name" value={state.name} onChange={(e) => set({ name: e.target.value })} />
+              <label style={{ display: "block", fontSize: 13, fontWeight: 600, color: c.brown, marginBottom: 6 }}>Email Address</label>
+              <input style={{ ...S.input, marginBottom: 28 }} type="email" placeholder="you@example.com" value={state.email} onChange={(e) => set({ email: e.target.value })} />
+            </div>
+            <button
+              style={{ ...S.btn, ...(!canSubmit ? { opacity: 0.35, cursor: "not-allowed" } : {}) }}
+              disabled={!canSubmit}
+              onClick={showResults}
+            >
+              Show Me My Results
+            </button>
+            <p style={{ fontSize: 11, color: c.muted, marginTop: 14, lineHeight: 1.6 }}>
+              Your information will never be shared or sold. You will receive your results and may hear from The Burks Collective. You can unsubscribe at any time.
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // RESULTS
+  if (state.screen === "results" && profile) {
+    return (
+      <div style={S.wrap}>
+        <link href="https://fonts.googleapis.com/css2?family=Lora:wght@400;600;700&family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+        <div style={S.brandBar}><p style={S.brandLabel}>The Burks Collective</p></div>
+        <div style={S.inner}>
+
+          {/* Profile Hero */}
+          <div style={{ ...S.card, background: c.brown, textAlign: "center", marginBottom: 16 }}>
+            <p style={{ fontSize: 11, letterSpacing: "0.18em", textTransform: "uppercase", color: c.taupe, fontWeight: 700, marginBottom: 12 }}>
+              {state.name}, you are
+            </p>
+            <div style={{ width: 56, height: 56, borderRadius: "50%", background: profile.color, display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 16px", fontSize: 22, color: c.offwhite }}>
+              {profile.icon}
+            </div>
+            <h1 style={{ fontFamily: "'Lora', serif", fontSize: 30, fontWeight: 700, color: c.offwhite, lineHeight: 1.3, margin: "0 0 12px" }}>
+              {profile.type}
+            </h1>
+            <p style={{ fontSize: 15, color: c.taupe, fontStyle: "italic", lineHeight: 1.6, margin: 0 }}>
+              {profile.tagline}
+            </p>
+          </div>
+
+          {/* Description */}
+          <div style={S.card}>
+            <p style={S.eyebrow}>What This Means for You</p>
+            <p style={{ fontSize: 15, color: c.brown, lineHeight: 1.9, marginBottom: 0 }}>{profile.description}</p>
+          </div>
+
+          {/* Stuck and Needs */}
+          <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
+            <div style={{ ...S.card, flex: 1, minWidth: 220, borderTop: `4px solid ${c.taupe}` }}>
+              <p style={{ ...S.eyebrow, color: c.taupe }}>Why You Are Stuck</p>
+              <p style={{ fontSize: 14, color: c.brown, lineHeight: 1.8, margin: 0 }}>{profile.stuck}</p>
+            </div>
+            <div style={{ ...S.card, flex: 1, minWidth: 220, borderTop: `4px solid ${c.sage}` }}>
+              <p style={{ ...S.eyebrow, color: c.sage }}>What You Actually Need</p>
+              <p style={{ fontSize: 14, color: c.brown, lineHeight: 1.8, margin: 0 }}>{profile.needs}</p>
+            </div>
+          </div>
+
+          {/* Toolkit CTA */}
+          <div style={{ ...S.card, background: profile.color, marginBottom: 16 }}>
+            <p style={{ fontSize: 11, letterSpacing: "0.18em", textTransform: "uppercase", color: "rgba(250,248,245,0.75)", fontWeight: 700, marginBottom: 10 }}>Your Next Step Inside the Toolkit</p>
+            <p style={{ fontSize: 15, color: c.offwhite, lineHeight: 1.8, marginBottom: 24 }}>{profile.toolkitEntry}</p>
+            <a
+              href="https://knifieburks.com"
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{ display: "block", background: c.offwhite, color: c.brown, borderRadius: 12, padding: "16px 28px", fontSize: 14, fontWeight: 700, fontFamily: "'Poppins', sans-serif", textAlign: "center", textDecoration: "none", letterSpacing: "0.04em" }}
+            >
+              Get From Experience to Income: The Complete Toolkit
+            </a>
+            <p style={{ fontSize: 12, color: "rgba(250,248,245,0.7)", textAlign: "center", marginTop: 12, marginBottom: 0 }}>
+              Everything you need to go from idea to income. All in one place.
+            </p>
+          </div>
+
+          {/* Other profiles teaser */}
+          <div style={{ ...S.card, marginBottom: 16 }}>
+            <p style={S.eyebrow}>The Five Profiles</p>
+            <p style={{ fontSize: 13, color: "#6b5a4e", marginBottom: 20, lineHeight: 1.7 }}>
+              Every woman who takes this quiz falls into one of these five places. Wherever you are, the toolkit meets you there.
+            </p>
+            {Object.values(PROFILES).map((p, i) => {
+              const isYours = p.type === profile.type;
+              return (
+                <div key={i} style={{ display: "flex", gap: 12, alignItems: "center", padding: "11px 0", borderBottom: i < Object.values(PROFILES).length - 1 ? `1px solid ${c.light}` : "none" }}>
+                  <div style={{ width: 28, height: 28, borderRadius: "50%", background: isYours ? p.color : c.light, display: "flex", alignItems: "center", justifyContent: "center", color: isYours ? c.offwhite : c.muted, fontSize: 12, flexShrink: 0 }}>{p.icon}</div>
+                  <p style={{ fontSize: 13, fontWeight: isYours ? 700 : 400, color: isYours ? c.brown : c.muted, margin: 0 }}>
+                    {p.type} {isYours && <span style={{ fontSize: 11, background: c.sage, color: c.offwhite, borderRadius: 6, padding: "2px 8px", marginLeft: 6, fontWeight: 700 }}>You</span>}
+                  </p>
+                </div>
+              );
+            })}
+          </div>
+
+          <div style={{ textAlign: "center" }}>
+            <button style={S.btnGhost} onClick={reset}>Retake the Quiz</button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return null;
+}
+
+
+const domContainer = document.getElementById('root');
+const root = ReactDOM.createRoot(domContainer);
+root.render(React.createElement(ExperienceQuiz));
+</script>
+</body>
+</html>

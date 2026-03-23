@@ -1,0 +1,519 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Experience to Income Blueprint | The Burks Collective</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.2/babel.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,600;0,700;1,400;1,600&family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: 'Poppins', sans-serif; background: #F0EDE8; }
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+const { useState, useEffect, useRef } = React;
+
+
+const STORAGE_KEY = "burks_experience_blueprint";
+
+const SECTIONS = [
+  {
+    id: "career",
+    title: "Life and Career Experience",
+    icon: "◈",
+    color: "#8A9E8C",
+    description: "Your background holds more monetizable knowledge than you realize. This section helps you see it clearly.",
+    questions: [
+      { id: "q1", prompt: "What industries, roles, or careers have you worked in over your lifetime?", placeholder: "e.g. 20 years in corporate HR, then ran my own catering business for 5 years..." },
+      { id: "q2", prompt: "What is the most significant professional challenge you have navigated and come out of stronger?", placeholder: "e.g. Being passed over for promotion repeatedly until I learned to advocate for myself..." },
+      { id: "q3", prompt: "What do you know about your industry or field that most people outside of it do not know?", placeholder: "e.g. Most people do not realize that corporate recruiters spend less than 10 seconds on a resume..." },
+      { id: "q4", prompt: "What systems, processes, or ways of working did you develop over your career that made things easier or more effective?", placeholder: "e.g. I built a client intake process that cut my onboarding time in half..." },
+    ],
+  },
+  {
+    id: "skills",
+    title: "Skills You Take for Granted",
+    icon: "◇",
+    color: "#C4A882",
+    description: "The things that come easily to you are often the things other people will pay to learn. Do not dismiss what feels obvious.",
+    questions: [
+      { id: "q1", prompt: "What do you do well that you have never had to think hard about?", placeholder: "e.g. I can walk into any room and make people feel comfortable immediately..." },
+      { id: "q2", prompt: "What tasks or projects do people hand to you because they trust you to handle them?", placeholder: "e.g. Anytime someone needs a presentation or proposal written, they come to me..." },
+      { id: "q3", prompt: "What have you learned to do that took you a long time to figure out but now feels second nature?", placeholder: "e.g. Managing my time as a business owner while still being present for my family..." },
+      { id: "q4", prompt: "What could you teach someone in a 30-minute conversation that would save them weeks of trial and error?", placeholder: "e.g. How to price your services without undercharging or overthinking it..." },
+    ],
+  },
+  {
+    id: "problems",
+    title: "Problems You Have Personally Solved",
+    icon: "○",
+    color: "#8A9E8C",
+    description: "Every hard thing you have worked through is a roadmap someone else needs. Your solved problems are your curriculum.",
+    questions: [
+      { id: "q1", prompt: "What problem did you spend years trying to solve that you eventually figured out?", placeholder: "e.g. How to leave a stable salary without financial panic..." },
+      { id: "q2", prompt: "What situation did you walk into without a guide, figure out on your own, and wish someone had shown you a shorter path?", placeholder: "e.g. Building an online presence from scratch after 40 with no tech background..." },
+      { id: "q3", prompt: "What mistake have you made that you could help someone else avoid completely?", placeholder: "e.g. Launching a product no one asked for because I never validated the idea first..." },
+      { id: "q4", prompt: "What is something you solved in your personal life, finances, health, relationships, or faith that others are still struggling with?", placeholder: "e.g. Getting out of debt while still building savings and investing in my business..." },
+    ],
+  },
+  {
+    id: "transformations",
+    title: "Transformations You Have Been Through",
+    icon: "◉",
+    color: "#3D1C02",
+    description: "Transformation is the product people are actually buying. They are not buying information. They are buying the version of themselves that exists on the other side.",
+    questions: [
+      { id: "q1", prompt: "Describe a before and after in your life. Who were you before a major shift and who did you become after?", placeholder: "e.g. Before: burned out, underpaid, invisible at work. After: running my own business, setting my own schedule, earning more..." },
+      { id: "q2", prompt: "What belief did you once hold that you have completely changed your mind about?", placeholder: "e.g. I used to believe I needed a huge audience to make money online..." },
+      { id: "q3", prompt: "What season of life required you to rebuild yourself and what did you build?", placeholder: "e.g. After my divorce I had to learn to manage money alone for the first time at 47..." },
+      { id: "q4", prompt: "If someone met the version of you from 5 to 10 years ago and asked what changed, what would you tell them?", placeholder: "e.g. I stopped waiting for permission and started treating myself like the expert I already was..." },
+    ],
+  },
+  {
+    id: "authority",
+    title: "What People Already Come to You For",
+    icon: "◆",
+    color: "#C4A882",
+    description: "The clearest signal of what you should be selling is what people are already asking you for. This section surfaces that signal.",
+    questions: [
+      { id: "q1", prompt: "What do friends, family, or colleagues ask for your help or opinion on most often?", placeholder: "e.g. People always ask me how I stay so organized running my household and business at the same time..." },
+      { id: "q2", prompt: "What have you been told you are really good at by people who know your work?", placeholder: "e.g. My clients always tell me I have a gift for explaining complicated financial concepts simply..." },
+      { id: "q3", prompt: "What conversations do you find yourself having over and over again where you are always the one with the answer?", placeholder: "e.g. How to negotiate a raise, how to prep for a job interview, how to handle a difficult manager..." },
+      { id: "q4", prompt: "If you could be known for one thing that you help people with, what would it be?", placeholder: "e.g. Helping women over 40 realize their career experience is worth more than they have been charging..." },
+    ],
+  },
+];
+
+const READINESS_FACTORS = [
+  { id: "passion", label: "I feel energized when I think about this topic", weight: 1 },
+  { id: "expertise", label: "I have deep personal experience with this", weight: 2 },
+  { id: "demand", label: "People have asked me about this before", weight: 2 },
+  { id: "ready", label: "I could start building this within 30 days", weight: 1.5 },
+  { id: "outcome", label: "I can clearly describe the result someone gets", weight: 1.5 },
+];
+
+const defaultStore = () => ({
+  screen: "intro",
+  name: "",
+  mode: "guided",
+  guidedStep: 0,
+  guidedQuestion: 0,
+  answers: {},
+  offers: [
+    { id: 1, title: "", audience: "", outcome: "", priceRange: "", readiness: {} },
+    { id: 2, title: "", audience: "", outcome: "", priceRange: "", readiness: {} },
+    { id: 3, title: "", audience: "", outcome: "", priceRange: "", readiness: {} },
+  ],
+  offersScreen: false,
+});
+
+const PRICE_RANGES = ["$9 to $27", "$27 to $47", "$47 to $97", "$97 to $197", "$197 to $497", "$497+"];
+
+function ExperienceBlueprint() {
+  const [store, setStore] = useState(() => {
+    try { const s = localStorage.getItem(STORAGE_KEY); if (s) return JSON.parse(s); } catch {}
+    return defaultStore();
+  });
+
+  useEffect(() => { try { localStorage.setItem(STORAGE_KEY, JSON.stringify(store)); } catch {} }, [store]);
+
+  const update = (fn) => setStore((prev) => { const next = JSON.parse(JSON.stringify(prev)); fn(next); return next; });
+
+  const setAnswer = (sectionId, qId, value) => {
+    update((s) => { if (!s.answers[sectionId]) s.answers[sectionId] = {}; s.answers[sectionId][qId] = value; });
+  };
+
+  const getAnswer = (sectionId, qId) => store.answers?.[sectionId]?.[qId] || "";
+
+  const totalQuestions = SECTIONS.reduce((a, s) => a + s.questions.length, 0);
+  const answeredQuestions = SECTIONS.reduce((a, s) => a + s.questions.filter((q) => getAnswer(s.id, q.id).trim()).length, 0);
+  const pct = Math.round((answeredQuestions / totalQuestions) * 100);
+
+  const calcReadiness = (offer) => {
+    const scores = offer.readiness || {};
+    const total = READINESS_FACTORS.reduce((a, f) => a + (scores[f.id] ? f.weight : 0), 0);
+    const max = READINESS_FACTORS.reduce((a, f) => a + f.weight, 0);
+    return Math.round((total / max) * 100);
+  };
+
+  const rankedOffers = [...store.offers]
+    .filter((o) => o.title.trim())
+    .sort((a, b) => calcReadiness(b) - calcReadiness(a));
+
+  const c = {
+    cream: "#F0EDE8", sage: "#8A9E8C", brown: "#3D1C02",
+    taupe: "#C4A882", offwhite: "#FAF8F5",
+    muted: "#A89880", border: "#E0D9D1", light: "#EDE8E2",
+  };
+
+  const S = {
+    wrap: { minHeight: "100vh", background: c.cream, fontFamily: "'Poppins', sans-serif", padding: "0 16px 80px" },
+    inner: { maxWidth: 700, margin: "0 auto" },
+    header: { paddingTop: 40, paddingBottom: 24, borderBottom: `1px solid ${c.taupe}`, marginBottom: 32 },
+    brandLabel: { fontFamily: "'Lora', serif", fontSize: 13, color: c.taupe, letterSpacing: "0.06em", marginBottom: 4 },
+    pageTitle: { fontFamily: "'Lora', serif", fontSize: 28, fontWeight: 700, color: c.brown, margin: "0 0 6px" },
+    pageSub: { fontSize: 13, color: "#6b5a4e", margin: 0, lineHeight: 1.6 },
+    eyebrow: { fontSize: 11, letterSpacing: "0.16em", textTransform: "uppercase", color: c.sage, fontWeight: 700, marginBottom: 14 },
+    card: { background: c.offwhite, borderRadius: 16, padding: "28px 32px", boxShadow: "0 2px 20px rgba(61,28,2,0.06)", marginBottom: 16 },
+    label: { display: "block", fontSize: 13, fontWeight: 600, color: c.brown, marginBottom: 5 },
+    sublabel: { display: "block", fontSize: 12, color: c.muted, marginBottom: 10, lineHeight: 1.5 },
+    input: { width: "100%", padding: "12px 16px", borderRadius: 10, border: `2px solid ${c.border}`, background: c.cream, fontSize: 14, fontFamily: "'Poppins', sans-serif", color: c.brown, outline: "none", boxSizing: "border-box" },
+    textarea: { width: "100%", padding: "13px 16px", borderRadius: 10, border: `2px solid ${c.border}`, background: c.cream, fontSize: 14, fontFamily: "'Poppins', sans-serif", color: c.brown, outline: "none", boxSizing: "border-box", resize: "vertical", minHeight: 100, lineHeight: 1.7 },
+    select: { width: "100%", padding: "12px 16px", borderRadius: 10, border: `2px solid ${c.border}`, background: c.cream, fontSize: 14, fontFamily: "'Poppins', sans-serif", color: c.brown, outline: "none", boxSizing: "border-box" },
+    btn: { background: c.brown, color: c.offwhite, border: "none", borderRadius: 10, padding: "13px 28px", fontSize: 13, fontWeight: 600, fontFamily: "'Poppins', sans-serif", cursor: "pointer" },
+    btnSage: { background: c.sage, color: c.offwhite, border: "none", borderRadius: 10, padding: "13px 28px", fontSize: 13, fontWeight: 600, fontFamily: "'Poppins', sans-serif", cursor: "pointer" },
+    btnOutline: { background: "transparent", color: c.brown, border: `2px solid ${c.brown}`, borderRadius: 10, padding: "11px 24px", fontSize: 13, fontWeight: 600, fontFamily: "'Poppins', sans-serif", cursor: "pointer" },
+    btnGhost: { background: "transparent", color: c.muted, border: `1px solid ${c.border}`, borderRadius: 8, padding: "7px 14px", fontSize: 11, fontWeight: 600, fontFamily: "'Poppins', sans-serif", cursor: "pointer" },
+    btnTab: (active) => ({ padding: "9px 18px", borderRadius: 10, border: active ? `2px solid ${c.brown}` : `2px solid ${c.border}`, background: active ? c.brown : c.offwhite, color: active ? c.offwhite : c.brown, fontSize: 12, fontWeight: 700, fontFamily: "'Poppins', sans-serif", cursor: "pointer" }),
+  };
+
+  // INTRO
+  if (store.screen === "intro") {
+    return (
+      <div style={S.wrap}>
+        <link href="https://fonts.googleapis.com/css2?family=Lora:wght@400;600;700&family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+        <div style={S.inner}>
+          <div style={S.header}>
+            <p style={S.brandLabel}>The Burks Collective</p>
+            <h1 style={S.pageTitle}>Experience to Income Blueprint</h1>
+            <p style={S.pageSub}>Turn what you already know into a product someone will pay for. This is where your expertise becomes an offer.</p>
+          </div>
+          <div style={S.card}>
+            <p style={S.eyebrow}>How This Works</p>
+            <p style={{ fontSize: 15, color: c.brown, lineHeight: 1.8, marginBottom: 16 }}>
+              This Blueprint has two parts. First you will complete a five-section Experience Inventory that helps you see everything you already know and have been through. Then you will use what surfaces to build up to three product offer ideas, ranked by readiness so you know exactly where to start.
+            </p>
+            <p style={{ fontSize: 14, color: "#6b5a4e", lineHeight: 1.7, marginBottom: 28 }}>
+              You can move through the inventory in guided mode, one question at a time, or in free-form mode where all sections are visible at once. You can switch between modes at any time and your answers are saved automatically.
+            </p>
+            {SECTIONS.map((s, i) => (
+              <div key={s.id} style={{ display: "flex", gap: 14, padding: "12px 0", borderBottom: i < SECTIONS.length - 1 ? `1px solid ${c.light}` : "none" }}>
+                <div style={{ width: 32, height: 32, borderRadius: "50%", background: s.color, display: "flex", alignItems: "center", justifyContent: "center", color: c.offwhite, fontSize: 13, flexShrink: 0 }}>{s.icon}</div>
+                <div>
+                  <p style={{ fontSize: 14, fontWeight: 600, color: c.brown, margin: "0 0 2px" }}>{s.title}</p>
+                  <p style={{ fontSize: 12, color: c.muted, margin: 0 }}>{s.questions.length} questions</p>
+                </div>
+              </div>
+            ))}
+            <div style={{ marginTop: 28 }}>
+              <label style={S.label}>Your name</label>
+              <input style={{ ...S.input, marginBottom: 24 }} placeholder="e.g. Knifie" value={store.name} onChange={(e) => update((s) => { s.name = e.target.value; })} />
+              <button
+                style={{ ...S.btn, ...(!store.name.trim() ? { opacity: 0.35, cursor: "not-allowed" } : {}) }}
+                disabled={!store.name.trim()}
+                onClick={() => update((s) => { s.screen = "inventory"; })}
+              >
+                Start My Blueprint
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // INVENTORY
+  if (store.screen === "inventory") {
+    const isGuided = store.mode === "guided";
+    const currentSection = SECTIONS[store.guidedStep] || SECTIONS[0];
+    const currentQ = currentSection.questions[store.guidedQuestion];
+
+    return (
+      <div style={S.wrap}>
+        <link href="https://fonts.googleapis.com/css2?family=Lora:wght@400;600;700&family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+        <div style={S.inner}>
+          <div style={S.header}>
+            <p style={S.brandLabel}>The Burks Collective</p>
+            <h1 style={S.pageTitle}>Experience Inventory</h1>
+            <p style={S.pageSub}>{store.name}</p>
+          </div>
+
+          {/* Progress and mode */}
+          <div style={{ ...S.card, padding: "20px 28px", marginBottom: 16 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
+              <p style={{ fontSize: 12, color: c.muted, margin: 0 }}>{answeredQuestions} of {totalQuestions} questions answered</p>
+              <div style={{ display: "flex", gap: 8 }}>
+                <button onClick={() => update((s) => { s.mode = "guided"; })} style={S.btnTab(isGuided)}>Guided</button>
+                <button onClick={() => update((s) => { s.mode = "freeform"; })} style={S.btnTab(!isGuided)}>Free-form</button>
+              </div>
+            </div>
+            <div style={{ height: 5, borderRadius: 5, background: c.light, overflow: "hidden" }}>
+              <div style={{ height: "100%", width: `${pct}%`, background: c.sage, borderRadius: 5, transition: "width 0.4s ease" }} />
+            </div>
+          </div>
+
+          {/* GUIDED MODE */}
+          {isGuided && (
+            <div>
+              {/* Section tabs */}
+              <div style={{ display: "flex", gap: 8, overflowX: "auto", marginBottom: 16, paddingBottom: 4 }}>
+                {SECTIONS.map((s, i) => {
+                  const sAnswered = s.questions.filter((q) => getAnswer(s.id, q.id).trim()).length;
+                  const isActive = i === store.guidedStep;
+                  const isDone = sAnswered === s.questions.length;
+                  return (
+                    <button key={s.id} onClick={() => update((st) => { st.guidedStep = i; st.guidedQuestion = 0; })} style={{
+                      flexShrink: 0, padding: "9px 16px", borderRadius: 10,
+                      border: isActive ? `2px solid ${s.color}` : `2px solid ${isDone ? s.color : c.border}`,
+                      background: isActive ? s.color : isDone ? `${s.color}18` : c.offwhite,
+                      color: isActive ? c.offwhite : c.brown,
+                      fontSize: 11, fontWeight: 700, fontFamily: "'Poppins', sans-serif", cursor: "pointer",
+                      display: "flex", flexDirection: "column", alignItems: "center", gap: 3,
+                    }}>
+                      <span>{isDone && !isActive ? "✓" : s.icon}</span>
+                      <span style={{ fontSize: 10 }}>{s.title.split(" ").slice(0, 2).join(" ")}</span>
+                    </button>
+                  );
+                })}
+              </div>
+
+              <div style={{ ...S.card, borderTop: `4px solid ${currentSection.color}` }}>
+                <p style={{ ...S.eyebrow, color: currentSection.color }}>{currentSection.title}</p>
+                <p style={{ fontSize: 13, color: "#6b5a4e", lineHeight: 1.7, marginBottom: 24 }}>{currentSection.description}</p>
+
+                <div style={{ background: c.cream, borderRadius: 12, padding: "18px 20px", marginBottom: 20 }}>
+                  <p style={{ fontSize: 11, color: c.muted, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 8 }}>
+                    Question {store.guidedQuestion + 1} of {currentSection.questions.length}
+                  </p>
+                  <p style={{ fontSize: 16, fontWeight: 600, color: c.brown, lineHeight: 1.7, margin: 0 }}>{currentQ.prompt}</p>
+                </div>
+
+                <textarea
+                  style={{ ...S.textarea, marginBottom: 24 }}
+                  placeholder={currentQ.placeholder}
+                  value={getAnswer(currentSection.id, currentQ.id)}
+                  onChange={(e) => setAnswer(currentSection.id, currentQ.id, e.target.value)}
+                />
+
+                <div style={{ display: "flex", gap: 12, flexWrap: "wrap", alignItems: "center" }}>
+                  {(store.guidedQuestion > 0 || store.guidedStep > 0) && (
+                    <button style={S.btnGhost} onClick={() => update((s) => {
+                      if (s.guidedQuestion > 0) s.guidedQuestion--;
+                      else if (s.guidedStep > 0) { s.guidedStep--; s.guidedQuestion = SECTIONS[s.guidedStep].questions.length - 1; }
+                    })}>Back</button>
+                  )}
+                  {(store.guidedStep < SECTIONS.length - 1 || store.guidedQuestion < currentSection.questions.length - 1) ? (
+                    <button style={S.btn} onClick={() => update((s) => {
+                      if (s.guidedQuestion < currentSection.questions.length - 1) s.guidedQuestion++;
+                      else { s.guidedStep++; s.guidedQuestion = 0; }
+                    })}>
+                      {store.guidedQuestion < currentSection.questions.length - 1 ? "Next Question" : "Next Section"}
+                    </button>
+                  ) : (
+                    <button style={S.btnSage} onClick={() => update((s) => { s.screen = "offers"; })}>
+                      Build My Offer Ideas
+                    </button>
+                  )}
+                  {pct > 0 && store.guidedStep < SECTIONS.length - 1 && (
+                    <button style={S.btnGhost} onClick={() => update((s) => { s.screen = "offers"; })}>
+                      Skip to Offer Builder
+                    </button>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* FREE-FORM MODE */}
+          {!isGuided && (
+            <div>
+              {SECTIONS.map((section) => (
+                <div key={section.id} style={{ ...S.card, borderTop: `4px solid ${section.color}`, marginBottom: 16 }}>
+                  <div style={{ display: "flex", gap: 14, alignItems: "center", marginBottom: 16 }}>
+                    <div style={{ width: 36, height: 36, borderRadius: "50%", background: section.color, display: "flex", alignItems: "center", justifyContent: "center", color: c.offwhite, fontSize: 16, flexShrink: 0 }}>{section.icon}</div>
+                    <div>
+                      <p style={{ fontSize: 16, fontWeight: 700, color: c.brown, margin: "0 0 2px" }}>{section.title}</p>
+                      <p style={{ fontSize: 12, color: c.muted, margin: 0 }}>{section.description}</p>
+                    </div>
+                  </div>
+                  {section.questions.map((q, qi) => (
+                    <div key={q.id} style={{ marginBottom: qi < section.questions.length - 1 ? 20 : 0 }}>
+                      <label style={{ ...S.label, marginBottom: 8 }}>{q.prompt}</label>
+                      <textarea
+                        style={S.textarea}
+                        placeholder={q.placeholder}
+                        value={getAnswer(section.id, q.id)}
+                        onChange={(e) => setAnswer(section.id, q.id, e.target.value)}
+                      />
+                    </div>
+                  ))}
+                </div>
+              ))}
+              <button style={{ ...S.btnSage, marginBottom: 24 }} onClick={() => update((s) => { s.screen = "offers"; })}>
+                Build My Offer Ideas
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  // OFFER BUILDER
+  if (store.screen === "offers") {
+    return (
+      <div style={S.wrap}>
+        <link href="https://fonts.googleapis.com/css2?family=Lora:wght@400;600;700&family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+        <div style={S.inner}>
+          <div style={S.header}>
+            <button style={{ ...S.btnGhost, marginBottom: 16 }} onClick={() => update((s) => { s.screen = "inventory"; })}>← Back to Inventory</button>
+            <p style={S.brandLabel}>The Burks Collective</p>
+            <h1 style={S.pageTitle}>From Knowledge to Offer</h1>
+            <p style={S.pageSub}>Use what surfaced in your inventory to shape up to three product ideas.</p>
+          </div>
+
+          <div style={{ ...S.card, background: c.brown, marginBottom: 20 }}>
+            <p style={{ fontSize: 11, letterSpacing: "0.16em", textTransform: "uppercase", color: c.taupe, fontWeight: 700, marginBottom: 10 }}>Before You Fill This In</p>
+            <p style={{ fontSize: 14, color: "rgba(240,237,232,0.88)", lineHeight: 1.8, margin: 0 }}>
+              Go back through your inventory answers and look for patterns. What topic showed up more than once? What problem did you describe solving that you could teach? What transformation have you been through that someone is currently in the middle of? Start there.
+            </p>
+          </div>
+
+          {store.offers.map((offer, oi) => (
+            <div key={offer.id} style={{ ...S.card, marginBottom: 16 }}>
+              <p style={{ ...S.eyebrow }}>Offer Idea {oi + 1}</p>
+
+              <label style={S.label}>Working title</label>
+              <span style={S.sublabel}>What would you call this product right now? It does not have to be perfect.</span>
+              <input style={{ ...S.input, marginBottom: 20 }} placeholder="e.g. The Career Pivot Playbook" value={offer.title} onChange={(e) => update((s) => { s.offers[oi].title = e.target.value; })} />
+
+              <label style={S.label}>Who is this for?</label>
+              <span style={S.sublabel}>Be as specific as possible. The narrower the better.</span>
+              <input style={{ ...S.input, marginBottom: 20 }} placeholder="e.g. Women over 40 leaving corporate after 20+ years" value={offer.audience} onChange={(e) => update((s) => { s.offers[oi].audience = e.target.value; })} />
+
+              <label style={S.label}>What outcome does the buyer walk away with?</label>
+              <span style={S.sublabel}>Describe the result in one sentence. Focus on what changes for them, not what is included in the product.</span>
+              <input style={{ ...S.input, marginBottom: 20 }} placeholder="e.g. A clear 90-day plan to transition out of corporate without financial panic" value={offer.outcome} onChange={(e) => update((s) => { s.offers[oi].outcome = e.target.value; })} />
+
+              <label style={S.label}>Price range</label>
+              <span style={S.sublabel}>Where does this feel like it belongs based on the depth of the transformation?</span>
+              <select style={{ ...S.select, marginBottom: 24 }} value={offer.priceRange} onChange={(e) => update((s) => { s.offers[oi].priceRange = e.target.value; })}>
+                <option value="">Select a range</option>
+                {PRICE_RANGES.map((r) => <option key={r} value={r}>{r}</option>)}
+              </select>
+
+              <p style={{ fontSize: 13, fontWeight: 600, color: c.brown, marginBottom: 12 }}>Readiness Check</p>
+              <p style={{ fontSize: 12, color: c.muted, marginBottom: 14, lineHeight: 1.6 }}>Check every statement that is true for this idea right now.</p>
+              {READINESS_FACTORS.map((f) => {
+                const checked = !!offer.readiness?.[f.id];
+                return (
+                  <div key={f.id} onClick={() => update((s) => {
+                    if (!s.offers[oi].readiness) s.offers[oi].readiness = {};
+                    s.offers[oi].readiness[f.id] = !s.offers[oi].readiness[f.id];
+                  })} style={{ display: "flex", gap: 12, alignItems: "center", padding: "10px 0", borderBottom: `1px solid ${c.light}`, cursor: "pointer" }}>
+                    <div style={{ width: 20, height: 20, borderRadius: 5, border: checked ? "none" : `2px solid ${c.border}`, background: checked ? c.sage : "transparent", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                      {checked && <span style={{ color: c.offwhite, fontSize: 11, fontWeight: 700 }}>✓</span>}
+                    </div>
+                    <p style={{ fontSize: 13, color: c.brown, margin: 0, lineHeight: 1.5 }}>{f.label}</p>
+                  </div>
+                );
+              })}
+
+              {offer.title.trim() && (
+                <div style={{ marginTop: 16, padding: "12px 16px", background: c.cream, borderRadius: 10 }}>
+                  <p style={{ fontSize: 12, color: c.sage, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", margin: "0 0 4px" }}>Readiness Score</p>
+                  <p style={{ fontFamily: "'Lora', serif", fontSize: 24, fontWeight: 700, color: c.brown, margin: 0 }}>{calcReadiness(offer)}%</p>
+                </div>
+              )}
+            </div>
+          ))}
+
+          {rankedOffers.length > 0 && (
+            <button style={S.btnSage} onClick={() => update((s) => { s.screen = "results"; })}>
+              See My Ranked Offer Ideas
+            </button>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  // RESULTS
+  if (store.screen === "results") {
+    const medals = ["◈ Start Here", "◇ Build Next", "○ Save for Later"];
+    return (
+      <div style={S.wrap}>
+        <link href="https://fonts.googleapis.com/css2?family=Lora:wght@400;600;700&family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+        <div style={S.inner}>
+          <div style={S.header}>
+            <button style={{ ...S.btnGhost, marginBottom: 16 }} onClick={() => update((s) => { s.screen = "offers"; })}>← Edit Offers</button>
+            <p style={S.brandLabel}>The Burks Collective</p>
+            <h1 style={S.pageTitle}>Your Offer Ideas</h1>
+            <p style={S.pageSub}>{store.name}, here is where to focus first.</p>
+          </div>
+
+          <div style={{ ...S.card, background: c.brown, marginBottom: 20 }}>
+            <p style={{ fontSize: 11, letterSpacing: "0.16em", textTransform: "uppercase", color: c.taupe, fontWeight: 700, marginBottom: 10 }}>How to Read This</p>
+            <p style={{ fontSize: 14, color: "rgba(240,237,232,0.88)", lineHeight: 1.8, margin: 0 }}>
+              Your offers are ranked by readiness, not by size or price. The one at the top is the one you have the most signal, confidence, and clarity around right now. That is the one to build first. The others are not gone. They are waiting.
+            </p>
+          </div>
+
+          {rankedOffers.map((offer, i) => {
+            const score = calcReadiness(offer);
+            const colors = [c.sage, c.taupe, c.muted];
+            return (
+              <div key={offer.id} style={{ ...S.card, borderLeft: `5px solid ${colors[i]}`, marginBottom: 16 }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 16 }}>
+                  <div>
+                    <p style={{ fontSize: 11, fontWeight: 700, color: colors[i], textTransform: "uppercase", letterSpacing: "0.1em", margin: "0 0 4px" }}>{medals[i]}</p>
+                    <h2 style={{ fontFamily: "'Lora', serif", fontSize: 20, fontWeight: 700, color: c.brown, margin: 0 }}>{offer.title}</h2>
+                  </div>
+                  <div style={{ textAlign: "right" }}>
+                    <p style={{ fontSize: 11, color: c.muted, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", margin: "0 0 4px" }}>Readiness</p>
+                    <p style={{ fontFamily: "'Lora', serif", fontSize: 28, fontWeight: 700, color: c.brown, margin: 0 }}>{score}%</p>
+                  </div>
+                </div>
+
+                <div style={{ height: 5, borderRadius: 5, background: c.light, overflow: "hidden", marginBottom: 16 }}>
+                  <div style={{ height: "100%", width: `${score}%`, background: colors[i], borderRadius: 5 }} />
+                </div>
+
+                {[
+                  { label: "Audience", value: offer.audience },
+                  { label: "Outcome", value: offer.outcome },
+                  { label: "Price Range", value: offer.priceRange },
+                ].filter((f) => f.value).map((field, fi) => (
+                  <div key={fi} style={{ padding: "10px 0", borderBottom: `1px solid ${c.light}` }}>
+                    <p style={{ fontSize: 11, fontWeight: 700, color: c.muted, textTransform: "uppercase", letterSpacing: "0.08em", margin: "0 0 4px" }}>{field.label}</p>
+                    <p style={{ fontSize: 14, color: c.brown, margin: 0, lineHeight: 1.6 }}>{field.value}</p>
+                  </div>
+                ))}
+
+                {i === 0 && (
+                  <div style={{ background: c.cream, borderRadius: 10, padding: "14px 16px", marginTop: 16, borderLeft: `3px solid ${c.sage}` }}>
+                    <p style={{ fontSize: 12, fontWeight: 700, color: c.sage, textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 6 }}>Your Next Step</p>
+                    <p style={{ fontSize: 13, color: c.brown, lineHeight: 1.7, margin: 0 }}>
+                      Take this offer into the Idea Validation Scorecard to confirm demand and ease of creation before you build. Then move into the Product Creation Tracker and start.
+                    </p>
+                  </div>
+                )}
+              </div>
+            );
+          })}
+
+          <div style={{ display: "flex", gap: 14, flexWrap: "wrap" }}>
+            <button style={S.btnOutline} onClick={() => update((s) => { s.screen = "offers"; })}>Edit My Offers</button>
+            <button style={S.btnGhost} onClick={() => update((s) => { s.screen = "inventory"; })}>Back to Inventory</button>
+            <button style={S.btnGhost} onClick={() => { setStore(defaultStore()); try { localStorage.removeItem(STORAGE_KEY); } catch {} }}>Start Over</button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return null;
+}
+
+
+const domContainer = document.getElementById('root');
+const root = ReactDOM.createRoot(domContainer);
+root.render(React.createElement(ExperienceBlueprint));
+</script>
+</body>
+</html>

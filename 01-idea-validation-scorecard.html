@@ -1,0 +1,620 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Idea Validation Scorecard | The Burks Collective</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.2/babel.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,600;0,700;1,400;1,600&family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: 'Poppins', sans-serif; background: #F0EDE8; }
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+const { useState, useEffect, useRef } = React;
+
+
+const STORAGE_KEY = "burks_idea_scorecard";
+
+const categories = [
+  {
+    id: "demand",
+    title: "Demand",
+    subtitle: "Is there a real market for this idea?",
+    icon: "◈",
+    statements: [
+      "People in my audience or network have asked about this topic",
+      "I have seen others sell something similar and it appears to be working",
+      "This topic comes up repeatedly in groups, comments, or conversations I'm part of",
+      "Someone has paid me — in money or significant time — for this knowledge before",
+      "I could find 10 people right now who need this",
+    ],
+  },
+  {
+    id: "creation",
+    title: "Ease of Creation",
+    subtitle: "Can you build this without burning out?",
+    icon: "◇",
+    statements: [
+      "I already have content, notes, or materials I could build from",
+      "I could outline this product in one sitting",
+      "I do not need to do extensive research to create this",
+      "I could have a draft version ready within 30 days",
+      "Creating this would not require tools or skills I do not already have",
+    ],
+  },
+  {
+    id: "income",
+    title: "Income Potential",
+    subtitle: "Will this move the needle financially?",
+    icon: "◉",
+    statements: [
+      "I can see this product selling for $27 or more",
+      "This product could lead to a higher-ticket offer naturally",
+      "I could sell this repeatedly without creating new content each time",
+      "I could market this without needing a large audience",
+      "I believe this product could generate income within 60 days of launch",
+    ],
+  },
+];
+
+const scoreGuide = [
+  {
+    min: 60,
+    max: 75,
+    label: "Ready to Build",
+    color: "#8A9E8C",
+    message:
+      "Your idea has strong signal across all three areas. You have the knowledge, the market, and the momentum to move forward. Stop waiting for more confirmation — this is it. Your next step is moving into the Build Board and turning this idea into a product.",
+    next: "Move to Module 2: The Build Board",
+  },
+  {
+    min: 45,
+    max: 59,
+    label: "Solid Foundation",
+    color: "#C4A882",
+    message:
+      "You have something real here. Look at which category scored lowest — that's where to focus before you start building. You don't need a perfect score to move forward. You need clarity on the one area that needs tightening.",
+    next: "Review your lowest category score and address it before building",
+  },
+  {
+    min: 30,
+    max: 44,
+    label: "Needs Narrowing",
+    color: "#C4A882",
+    message:
+      "The foundation is there but the focus needs sharpening. This idea may be too broad, too early, or aimed at the wrong person right now. Go back to the Decision Tree and look for a more specific angle. A smaller, clearer idea almost always outperforms a big, vague one.",
+    next: "Return to the Decision Tree and narrow your focus",
+  },
+  {
+    min: 0,
+    max: 29,
+    label: "Not Ready Yet",
+    color: "#3D1C02",
+    message:
+      "This idea isn't ready — and that's okay. It doesn't mean you don't have something to offer. It means this particular angle needs more development. Return to the Decision Tree with fresh eyes and give yourself permission to explore a different direction.",
+    next: "Return to the Decision Tree and explore a different idea",
+  },
+];
+
+const labels = ["Not at all", "Unlikely", "Somewhat", "Mostly", "Absolutely"];
+
+function IdeaValidationScorecard() {
+  const [screen, setScreen] = useState("intro"); // intro | scoring | results
+  const [categoryIndex, setCategoryIndex] = useState(0);
+  const [scores, setScores] = useState(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEY);
+      if (saved) return JSON.parse(saved);
+    } catch {}
+    return { demand: [0, 0, 0, 0, 0], creation: [0, 0, 0, 0, 0], income: [0, 0, 0, 0, 0] };
+  });
+  const [ideaName, setIdeaName] = useState(() => {
+    try {
+      return localStorage.getItem(STORAGE_KEY + "_idea") || "";
+    } catch {}
+    return "";
+  });
+  const [hasProgress, setHasProgress] = useState(false);
+
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEY);
+      if (saved) setHasProgress(true);
+    } catch {}
+  }, []);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(scores));
+      localStorage.setItem(STORAGE_KEY + "_idea", ideaName);
+    } catch {}
+  }, [scores, ideaName]);
+
+  const currentCategory = categories[categoryIndex];
+  const currentScores = scores[currentCategory?.id] || [0, 0, 0, 0, 0];
+
+  const totalScore = Object.values(scores).flat().reduce((a, b) => a + b, 0);
+  const categoryTotals = categories.map((c) => ({
+    ...c,
+    total: scores[c.id].reduce((a, b) => a + b, 0),
+  }));
+
+  const result = scoreGuide.find((g) => totalScore >= g.min && totalScore <= g.max);
+
+  const setScore = (qIndex, val) => {
+    setScores((prev) => ({
+      ...prev,
+      [currentCategory.id]: prev[currentCategory.id].map((s, i) => (i === qIndex ? val : s)),
+    }));
+  };
+
+  const canAdvance = currentScores.every((s) => s > 0);
+  const progress = ((categoryIndex + (canAdvance ? 1 : 0)) / categories.length) * 100;
+
+  const resetAll = () => {
+    setScores({ demand: [0, 0, 0, 0, 0], creation: [0, 0, 0, 0, 0], income: [0, 0, 0, 0, 0] });
+    setIdeaName("");
+    setCategoryIndex(0);
+    setScreen("intro");
+    setHasProgress(false);
+    try {
+      localStorage.removeItem(STORAGE_KEY);
+      localStorage.removeItem(STORAGE_KEY + "_idea");
+    } catch {}
+  };
+
+  const styles = {
+    wrap: {
+      minHeight: "100vh",
+      background: "#F0EDE8",
+      fontFamily: "'Poppins', sans-serif",
+      display: "flex",
+      flexDirection: "column",
+      alignItems: "center",
+      padding: "0 16px 60px",
+    },
+    header: {
+      width: "100%",
+      maxWidth: 680,
+      paddingTop: 40,
+      paddingBottom: 24,
+      borderBottom: "1px solid #C4A882",
+      marginBottom: 40,
+    },
+    eyebrow: {
+      fontSize: 11,
+      letterSpacing: "0.18em",
+      textTransform: "uppercase",
+      color: "#8A9E8C",
+      fontFamily: "'Poppins', sans-serif",
+      fontWeight: 600,
+      marginBottom: 8,
+    },
+    brandTitle: {
+      fontFamily: "'Lora', serif",
+      fontSize: 13,
+      color: "#C4A882",
+      letterSpacing: "0.06em",
+      marginBottom: 4,
+    },
+    toolTitle: {
+      fontFamily: "'Lora', serif",
+      fontSize: 28,
+      fontWeight: 700,
+      color: "#3D1C02",
+      lineHeight: 1.2,
+      margin: "0 0 8px",
+    },
+    toolSubtitle: {
+      fontSize: 14,
+      color: "#6b5a4e",
+      lineHeight: 1.6,
+      margin: 0,
+    },
+    card: {
+      width: "100%",
+      maxWidth: 680,
+      background: "#FAF8F5",
+      borderRadius: 16,
+      padding: "40px 44px",
+      boxShadow: "0 2px 24px rgba(61,28,2,0.07)",
+    },
+    progressWrap: {
+      width: "100%",
+      maxWidth: 680,
+      marginBottom: 28,
+    },
+    progressLabel: {
+      display: "flex",
+      justifyContent: "space-between",
+      fontSize: 12,
+      color: "#8A9E8C",
+      fontWeight: 600,
+      letterSpacing: "0.08em",
+      textTransform: "uppercase",
+      marginBottom: 8,
+    },
+    progressBar: {
+      height: 4,
+      background: "#E8E2DA",
+      borderRadius: 4,
+      overflow: "hidden",
+    },
+    progressFill: {
+      height: "100%",
+      background: "#8A9E8C",
+      borderRadius: 4,
+      transition: "width 0.4s ease",
+      width: `${progress}%`,
+    },
+    categoryIcon: {
+      fontSize: 28,
+      color: "#C4A882",
+      marginBottom: 12,
+      display: "block",
+    },
+    categoryTitle: {
+      fontFamily: "'Lora', serif",
+      fontSize: 22,
+      fontWeight: 700,
+      color: "#3D1C02",
+      margin: "0 0 4px",
+    },
+    categorySubtitle: {
+      fontSize: 13,
+      color: "#8A9E8C",
+      marginBottom: 32,
+      fontWeight: 500,
+    },
+    question: {
+      marginBottom: 28,
+      paddingBottom: 28,
+      borderBottom: "1px solid #EDE8E2",
+    },
+    questionText: {
+      fontSize: 15,
+      color: "#3D1C02",
+      lineHeight: 1.6,
+      marginBottom: 14,
+      fontWeight: 500,
+    },
+    ratingRow: {
+      display: "flex",
+      gap: 10,
+      flexWrap: "wrap",
+    },
+    ratingBtn: (val, selected) => ({
+      width: 44,
+      height: 44,
+      borderRadius: 10,
+      border: selected ? "2px solid #8A9E8C" : "2px solid #E0D9D1",
+      background: selected ? "#8A9E8C" : "transparent",
+      color: selected ? "#FAF8F5" : "#3D1C02",
+      fontSize: 15,
+      fontWeight: 700,
+      cursor: "pointer",
+      transition: "all 0.15s ease",
+      fontFamily: "'Poppins', sans-serif",
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+    }),
+    ratingLabels: {
+      display: "flex",
+      justifyContent: "space-between",
+      marginTop: 6,
+      fontSize: 10,
+      color: "#A89880",
+      letterSpacing: "0.04em",
+    },
+    btn: {
+      background: "#3D1C02",
+      color: "#FAF8F5",
+      border: "none",
+      borderRadius: 10,
+      padding: "14px 32px",
+      fontSize: 14,
+      fontWeight: 600,
+      fontFamily: "'Poppins', sans-serif",
+      cursor: "pointer",
+      letterSpacing: "0.04em",
+      transition: "opacity 0.2s",
+    },
+    btnDisabled: {
+      opacity: 0.35,
+      cursor: "not-allowed",
+    },
+    btnOutline: {
+      background: "transparent",
+      color: "#3D1C02",
+      border: "2px solid #3D1C02",
+      borderRadius: 10,
+      padding: "12px 28px",
+      fontSize: 13,
+      fontWeight: 600,
+      fontFamily: "'Poppins', sans-serif",
+      cursor: "pointer",
+      letterSpacing: "0.04em",
+    },
+    input: {
+      width: "100%",
+      padding: "14px 18px",
+      borderRadius: 10,
+      border: "2px solid #E0D9D1",
+      background: "#F0EDE8",
+      fontSize: 15,
+      fontFamily: "'Poppins', sans-serif",
+      color: "#3D1C02",
+      outline: "none",
+      marginBottom: 24,
+      boxSizing: "border-box",
+    },
+    resultScore: {
+      fontFamily: "'Lora', serif",
+      fontSize: 72,
+      fontWeight: 700,
+      color: "#3D1C02",
+      lineHeight: 1,
+      marginBottom: 4,
+    },
+    resultOutOf: {
+      fontSize: 16,
+      color: "#A89880",
+      marginBottom: 20,
+    },
+    resultLabel: (color) => ({
+      display: "inline-block",
+      background: color,
+      color: "#FAF8F5",
+      borderRadius: 8,
+      padding: "6px 18px",
+      fontSize: 12,
+      fontWeight: 700,
+      letterSpacing: "0.1em",
+      textTransform: "uppercase",
+      marginBottom: 24,
+    }),
+    resultMessage: {
+      fontSize: 15,
+      color: "#3D1C02",
+      lineHeight: 1.8,
+      marginBottom: 32,
+    },
+    breakdownRow: {
+      display: "flex",
+      justifyContent: "space-between",
+      alignItems: "center",
+      padding: "14px 0",
+      borderBottom: "1px solid #EDE8E2",
+    },
+    breakdownLabel: {
+      fontSize: 14,
+      color: "#3D1C02",
+      fontWeight: 600,
+    },
+    breakdownSub: {
+      fontSize: 11,
+      color: "#A89880",
+      marginTop: 2,
+    },
+    breakdownScore: {
+      fontFamily: "'Lora', serif",
+      fontSize: 20,
+      fontWeight: 700,
+      color: "#3D1C02",
+    },
+    nextStep: {
+      background: "#F0EDE8",
+      borderRadius: 12,
+      padding: "18px 22px",
+      marginTop: 28,
+      borderLeft: "3px solid #8A9E8C",
+    },
+    nextStepLabel: {
+      fontSize: 11,
+      fontWeight: 700,
+      letterSpacing: "0.12em",
+      textTransform: "uppercase",
+      color: "#8A9E8C",
+      marginBottom: 6,
+    },
+    nextStepText: {
+      fontSize: 14,
+      color: "#3D1C02",
+      fontWeight: 600,
+      lineHeight: 1.5,
+    },
+  };
+
+  // Intro screen
+  if (screen === "intro") {
+    return (
+      <div style={styles.wrap}>
+        <link href="https://fonts.googleapis.com/css2?family=Lora:wght@400;600;700&family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+        <div style={styles.header}>
+          <p style={styles.brandTitle}>The Burks Collective</p>
+          <h1 style={styles.toolTitle}>Idea Validation Scorecard</h1>
+          <p style={styles.toolSubtitle}>Rate your product idea across three key areas before you invest time building anything.</p>
+        </div>
+        <div style={styles.card}>
+          <p style={{ ...styles.eyebrow, marginBottom: 20 }}>Before You Begin</p>
+          <p style={{ fontSize: 15, color: "#3D1C02", lineHeight: 1.8, marginBottom: 24 }}>
+            This scorecard takes about 5 minutes. You'll rate 15 statements across three categories — Demand, Ease of Creation, and Income Potential — on a scale of 1 to 5. At the end, you'll receive a total score, a category breakdown, and a clear next step.
+          </p>
+          <p style={{ fontSize: 14, color: "#6b5a4e", lineHeight: 1.7, marginBottom: 32 }}>
+            Have one specific product idea in mind before you start. If you have more than one idea, complete this scorecard separately for each one.
+          </p>
+          <label style={{ display: "block", fontSize: 13, fontWeight: 600, color: "#3D1C02", marginBottom: 8, letterSpacing: "0.04em" }}>
+            Name your idea (working title is fine)
+          </label>
+          <input
+            style={styles.input}
+            placeholder="e.g. 90-Day Budget Reset Guide"
+            value={ideaName}
+            onChange={(e) => setIdeaName(e.target.value)}
+          />
+          <div style={{ display: "flex", gap: 14, alignItems: "center", flexWrap: "wrap" }}>
+            <button
+              style={{ ...styles.btn, ...((!ideaName.trim()) ? styles.btnDisabled : {}) }}
+              disabled={!ideaName.trim()}
+              onClick={() => setScreen("scoring")}
+            >
+              Start Scoring
+            </button>
+            {hasProgress && (
+              <button style={styles.btnOutline} onClick={() => setScreen("results")}>
+                View My Last Results
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Scoring screen
+  if (screen === "scoring") {
+    return (
+      <div style={styles.wrap}>
+        <link href="https://fonts.googleapis.com/css2?family=Lora:wght@400;600;700&family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+        <div style={styles.header}>
+          <p style={styles.brandTitle}>The Burks Collective</p>
+          <h1 style={styles.toolTitle}>Idea Validation Scorecard</h1>
+          <p style={styles.toolSubtitle}>{ideaName}</p>
+        </div>
+
+        <div style={styles.progressWrap}>
+          <div style={styles.progressLabel}>
+            <span>Category {categoryIndex + 1} of {categories.length}</span>
+            <span>{Math.round(progress)}% complete</span>
+          </div>
+          <div style={styles.progressBar}>
+            <div style={styles.progressFill} />
+          </div>
+        </div>
+
+        <div style={styles.card}>
+          <span style={styles.categoryIcon}>{currentCategory.icon}</span>
+          <h2 style={styles.categoryTitle}>{currentCategory.title}</h2>
+          <p style={styles.categorySubtitle}>{currentCategory.subtitle}</p>
+
+          {currentCategory.statements.map((stmt, i) => (
+            <div key={i} style={{ ...styles.question, ...(i === currentCategory.statements.length - 1 ? { borderBottom: "none", marginBottom: 0, paddingBottom: 0 } : {}) }}>
+              <p style={styles.questionText}>{stmt}</p>
+              <div style={styles.ratingRow}>
+                {[1, 2, 3, 4, 5].map((val) => (
+                  <button
+                    key={val}
+                    style={styles.ratingBtn(val, currentScores[i] === val)}
+                    onClick={() => setScore(i, val)}
+                  >
+                    {val}
+                  </button>
+                ))}
+              </div>
+              <div style={styles.ratingLabels}>
+                <span>{labels[0]}</span>
+                <span>{labels[4]}</span>
+              </div>
+            </div>
+          ))}
+
+          <div style={{ display: "flex", gap: 14, marginTop: 36, alignItems: "center" }}>
+            {categoryIndex > 0 && (
+              <button style={styles.btnOutline} onClick={() => setCategoryIndex((i) => i - 1)}>
+                Back
+              </button>
+            )}
+            <button
+              style={{ ...styles.btn, ...(!canAdvance ? styles.btnDisabled : {}) }}
+              disabled={!canAdvance}
+              onClick={() => {
+                if (categoryIndex < categories.length - 1) {
+                  setCategoryIndex((i) => i + 1);
+                } else {
+                  setScreen("results");
+                }
+              }}
+            >
+              {categoryIndex < categories.length - 1 ? "Next Category" : "See My Results"}
+            </button>
+          </div>
+          {!canAdvance && (
+            <p style={{ fontSize: 12, color: "#A89880", marginTop: 12 }}>Rate all five statements to continue.</p>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  // Results screen
+  if (screen === "results") {
+    return (
+      <div style={styles.wrap}>
+        <link href="https://fonts.googleapis.com/css2?family=Lora:wght@400;600;700&family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+        <div style={styles.header}>
+          <p style={styles.brandTitle}>The Burks Collective</p>
+          <h1 style={styles.toolTitle}>Your Results</h1>
+          <p style={styles.toolSubtitle}>{ideaName}</p>
+        </div>
+
+        <div style={styles.card}>
+          <div style={{ textAlign: "center", marginBottom: 36, paddingBottom: 36, borderBottom: "1px solid #EDE8E2" }}>
+            <div style={styles.resultScore}>{totalScore}</div>
+            <div style={styles.resultOutOf}>out of 75</div>
+            {result && <span style={styles.resultLabel(result.color)}>{result.label}</span>}
+            {result && <p style={styles.resultMessage}>{result.message}</p>}
+          </div>
+
+          <p style={{ ...styles.eyebrow, marginBottom: 20 }}>Score Breakdown</p>
+
+          {categoryTotals.map((cat, i) => {
+            const pct = (cat.total / 25) * 100;
+            return (
+              <div key={i} style={styles.breakdownRow}>
+                <div>
+                  <div style={styles.breakdownLabel}>{cat.title}</div>
+                  <div style={styles.breakdownSub}>{cat.subtitle}</div>
+                  <div style={{ marginTop: 8, height: 4, width: 200, background: "#E8E2DA", borderRadius: 4, overflow: "hidden" }}>
+                    <div style={{ height: "100%", width: `${pct}%`, background: "#8A9E8C", borderRadius: 4, transition: "width 0.6s ease" }} />
+                  </div>
+                </div>
+                <div style={styles.breakdownScore}>{cat.total}<span style={{ fontSize: 13, color: "#A89880", fontWeight: 400 }}>/25</span></div>
+              </div>
+            );
+          })}
+
+          {result && (
+            <div style={styles.nextStep}>
+              <div style={styles.nextStepLabel}>Your Next Step</div>
+              <div style={styles.nextStepText}>{result.next}</div>
+            </div>
+          )}
+
+          <div style={{ display: "flex", gap: 14, marginTop: 36, flexWrap: "wrap" }}>
+            <button style={styles.btn} onClick={() => { setCategoryIndex(0); setScreen("scoring"); }}>
+              Retake Scorecard
+            </button>
+            <button style={styles.btnOutline} onClick={resetAll}>
+              Start Fresh With a New Idea
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+}
+
+
+const domContainer = document.getElementById('root');
+const root = ReactDOM.createRoot(domContainer);
+root.render(React.createElement(IdeaValidationScorecard));
+</script>
+</body>
+</html>

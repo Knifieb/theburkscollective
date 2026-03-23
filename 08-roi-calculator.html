@@ -1,0 +1,374 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>ROI Calculator | The Burks Collective</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.2/babel.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,600;0,700;1,400;1,600&family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: 'Poppins', sans-serif; background: #F0EDE8; }
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+const { useState, useEffect, useRef } = React;
+
+
+const STORAGE_KEY = "burks_roi_calculator";
+
+const formatCurrency = (n) => "$" + Number(n || 0).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const formatCurrencyShort = (n) => "$" + Math.round(n || 0).toLocaleString();
+const formatPct = (n) => (n >= 0 ? "+" : "") + Math.round(n) + "%";
+
+const getRoiMessage = (roi) => {
+  if (roi < 0) return "You are currently spending more than you are earning on this product. Review your costs and either reduce spending or increase your price before scaling.";
+  if (roi < 50) return "Your return is positive but slim. Look at where your costs are highest and whether any can be reduced. A small price increase or cost cut can move this number significantly.";
+  if (roi < 150) return "You have a healthy return on this product. Focus on increasing sales volume and keeping your costs stable as you grow.";
+  if (roi < 300) return "Strong ROI. This product is working. Now is the time to increase visibility and let the numbers compound.";
+  return "Exceptional return. This product is a high-performer. Protect your margins as you scale and consider what a premium version of this offer could earn.";
+};
+
+function ROICalculator() {
+  const [data, setData] = useState(() => {
+    try { const s = localStorage.getItem(STORAGE_KEY); if (s) return JSON.parse(s); } catch {}
+    return {
+      screen: "input",
+      productName: "",
+      price: "",
+      hoursSpent: "",
+      costs: { tools: "", design: "", ads: "", fees: "" },
+      salesCount: "",
+    };
+  });
+
+  const [screen, setScreen] = useState(data.screen || "input");
+
+  useEffect(() => {
+    try { localStorage.setItem(STORAGE_KEY, JSON.stringify({ ...data, screen })); } catch {}
+  }, [data, screen]);
+
+  const update = (field, value) => setData((prev) => ({ ...prev, [field]: value }));
+  const updateCost = (key, value) => setData((prev) => ({ ...prev, costs: { ...prev.costs, [key]: value } }));
+
+  const price = parseFloat(data.price) || 0;
+  const hours = parseFloat(data.hoursSpent) || 0;
+  const sales = parseInt(data.salesCount) || 0;
+  const toolsCost = parseFloat(data.costs.tools) || 0;
+  const designCost = parseFloat(data.costs.design) || 0;
+  const adsCost = parseFloat(data.costs.ads) || 0;
+  const feesPct = parseFloat(data.costs.fees) || 0;
+
+  const totalRevenue = price * sales;
+  const feesTotal = (feesPct / 100) * totalRevenue;
+  const fixedCosts = toolsCost + designCost + adsCost;
+  const totalCosts = fixedCosts + feesTotal;
+  const netProfit = totalRevenue - totalCosts;
+  const roi = fixedCosts > 0 ? ((netProfit / fixedCosts) * 100) : 0;
+  const hourlyRate = hours > 0 && netProfit > 0 ? netProfit / hours : 0;
+  const breakEven = price > 0 ? Math.ceil(fixedCosts / (price * (1 - feesPct / 100))) : 0;
+
+  const projections = [
+    { label: "10 sales", sales: 10 },
+    { label: "25 sales", sales: 25 },
+    { label: "50 sales", sales: 50 },
+    { label: "100 sales", sales: 100 },
+    { label: "250 sales", sales: 250 },
+  ].map((p) => {
+    const rev = price * p.sales;
+    const fees = (feesPct / 100) * rev;
+    const costs = fixedCosts + fees;
+    const profit = rev - costs;
+    const projRoi = fixedCosts > 0 ? ((profit / fixedCosts) * 100) : 0;
+    return { ...p, revenue: rev, profit, roi: projRoi, pastBreakEven: p.sales >= breakEven };
+  });
+
+  const canCalculate = price > 0 && data.productName.trim() && sales > 0;
+
+  const c = {
+    cream: "#F0EDE8", sage: "#8A9E8C", brown: "#3D1C02",
+    taupe: "#C4A882", offwhite: "#FAF8F5",
+    muted: "#A89880", border: "#E0D9D1", light: "#EDE8E2",
+  };
+
+  const S = {
+    wrap: { minHeight: "100vh", background: c.cream, fontFamily: "'Poppins', sans-serif", padding: "0 16px 80px" },
+    inner: { maxWidth: 700, margin: "0 auto" },
+    header: { paddingTop: 40, paddingBottom: 24, borderBottom: `1px solid ${c.taupe}`, marginBottom: 32 },
+    brandLabel: { fontFamily: "'Lora', serif", fontSize: 13, color: c.taupe, letterSpacing: "0.06em", marginBottom: 4 },
+    pageTitle: { fontFamily: "'Lora', serif", fontSize: 28, fontWeight: 700, color: c.brown, margin: "0 0 6px" },
+    pageSub: { fontSize: 13, color: "#6b5a4e", margin: 0, lineHeight: 1.6 },
+    eyebrow: { fontSize: 11, letterSpacing: "0.16em", textTransform: "uppercase", color: c.sage, fontWeight: 700, marginBottom: 14 },
+    card: { background: c.offwhite, borderRadius: 16, padding: "28px 32px", boxShadow: "0 2px 20px rgba(61,28,2,0.06)", marginBottom: 16 },
+    label: { display: "block", fontSize: 13, fontWeight: 600, color: c.brown, marginBottom: 5 },
+    sublabel: { display: "block", fontSize: 12, color: c.muted, marginBottom: 10, lineHeight: 1.5 },
+    input: { width: "100%", padding: "12px 16px", borderRadius: 10, border: `2px solid ${c.border}`, background: c.cream, fontSize: 14, fontFamily: "'Poppins', sans-serif", color: c.brown, outline: "none", boxSizing: "border-box" },
+    row: { display: "flex", gap: 16, marginBottom: 20 },
+    btn: { background: c.brown, color: c.offwhite, border: "none", borderRadius: 10, padding: "13px 28px", fontSize: 13, fontWeight: 600, fontFamily: "'Poppins', sans-serif", cursor: "pointer" },
+    btnOutline: { background: "transparent", color: c.brown, border: `2px solid ${c.brown}`, borderRadius: 10, padding: "11px 24px", fontSize: 13, fontWeight: 600, fontFamily: "'Poppins', sans-serif", cursor: "pointer" },
+    btnGhost: { background: "transparent", color: c.muted, border: `1px solid ${c.border}`, borderRadius: 8, padding: "7px 14px", fontSize: 11, fontWeight: 600, fontFamily: "'Poppins', sans-serif", cursor: "pointer" },
+  };
+
+  const PrefixInput = ({ prefix, value, onChange, placeholder, type = "number" }) => (
+    <div style={{ position: "relative" }}>
+      {prefix && <span style={{ position: "absolute", left: 14, top: "50%", transform: "translateY(-50%)", color: c.muted, fontWeight: 600, fontSize: 14, pointerEvents: "none" }}>{prefix}</span>}
+      <input
+        style={{ ...S.input, paddingLeft: prefix ? 28 : 16 }}
+        type={type}
+        placeholder={placeholder}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+      />
+    </div>
+  );
+
+  if (screen === "input") {
+    return (
+      <div style={S.wrap}>
+        <link href="https://fonts.googleapis.com/css2?family=Lora:wght@400;600;700&family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+        <div style={S.inner}>
+          <div style={S.header}>
+            <p style={S.brandLabel}>The Burks Collective</p>
+            <h1 style={S.pageTitle}>ROI Calculator</h1>
+            <p style={S.pageSub}>See the real return on every dollar and hour you invested in creating your product.</p>
+          </div>
+
+          <div style={S.card}>
+            <p style={S.eyebrow}>Your Product</p>
+            <label style={S.label}>Product name</label>
+            <input style={{ ...S.input, marginBottom: 20 }} placeholder="e.g. From Experience to Income: The Complete Toolkit" value={data.productName} onChange={(e) => update("productName", e.target.value)} />
+
+            <div style={S.row}>
+              <div style={{ flex: 1 }}>
+                <label style={S.label}>Sale price</label>
+                <span style={S.sublabel}>What are you charging per unit?</span>
+                <PrefixInput prefix="$" value={data.price} onChange={(v) => update("price", v)} placeholder="97" />
+              </div>
+              <div style={{ flex: 1 }}>
+                <label style={S.label}>Units sold to date</label>
+                <span style={S.sublabel}>How many have you sold so far?</span>
+                <PrefixInput value={data.salesCount} onChange={(v) => update("salesCount", v)} placeholder="10" />
+              </div>
+            </div>
+
+            <label style={S.label}>Time invested in creating this product</label>
+            <span style={S.sublabel}>Total hours from idea to launch. Include research, writing, design, and setup time.</span>
+            <div style={{ position: "relative", marginBottom: 20 }}>
+              <input style={S.input} type="number" placeholder="20" value={data.hoursSpent} onChange={(e) => update("hoursSpent", e.target.value)} />
+            </div>
+          </div>
+
+          <div style={S.card}>
+            <p style={S.eyebrow}>Your Costs</p>
+            <p style={{ fontSize: 13, color: "#6b5a4e", marginBottom: 20, lineHeight: 1.7 }}>
+              Enter only what you spent specifically on this product. Leave anything blank that does not apply.
+            </p>
+
+            <div style={S.row}>
+              <div style={{ flex: 1 }}>
+                <label style={S.label}>Tools or software</label>
+                <span style={S.sublabel}>Canva, design tools, recording software, etc.</span>
+                <PrefixInput prefix="$" value={data.costs.tools} onChange={(v) => updateCost("tools", v)} placeholder="0" />
+              </div>
+              <div style={{ flex: 1 }}>
+                <label style={S.label}>Design or contractors</label>
+                <span style={S.sublabel}>Freelancers, editors, or VA costs.</span>
+                <PrefixInput prefix="$" value={data.costs.design} onChange={(v) => updateCost("design", v)} placeholder="0" />
+              </div>
+            </div>
+
+            <div style={S.row}>
+              <div style={{ flex: 1 }}>
+                <label style={S.label}>Ads or promotion</label>
+                <span style={S.sublabel}>Paid traffic, boosts, or sponsored posts.</span>
+                <PrefixInput prefix="$" value={data.costs.ads} onChange={(v) => updateCost("ads", v)} placeholder="0" />
+              </div>
+              <div style={{ flex: 1 }}>
+                <label style={S.label}>Platform or transaction fees</label>
+                <span style={S.sublabel}>Enter as a percentage. e.g. Stripe charges around 2.9%.</span>
+                <PrefixInput value={data.costs.fees} onChange={(v) => updateCost("fees", v)} placeholder="2.9" />
+              </div>
+            </div>
+
+            {(toolsCost + designCost + adsCost) > 0 && price > 0 && (
+              <div style={{ background: c.cream, borderRadius: 12, padding: "14px 18px", borderLeft: `3px solid ${c.sage}`, marginBottom: 8 }}>
+                <p style={{ fontSize: 12, color: c.sage, fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 6 }}>Quick Look</p>
+                <p style={{ fontSize: 14, color: c.brown, margin: "0 0 4px" }}>Total fixed costs: <strong>{formatCurrencyShort(toolsCost + designCost + adsCost)}</strong></p>
+                {price > 0 && <p style={{ fontSize: 14, color: c.brown, margin: 0 }}>You need at least <strong>{breakEven} {breakEven === 1 ? "sale" : "sales"}</strong> to break even.</p>}
+              </div>
+            )}
+          </div>
+
+          <button
+            style={{ ...S.btn, ...(!canCalculate ? { opacity: 0.35, cursor: "not-allowed" } : {}) }}
+            disabled={!canCalculate}
+            onClick={() => setScreen("results")}
+          >
+            Calculate My ROI
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  if (screen === "results") {
+    return (
+      <div style={S.wrap}>
+        <link href="https://fonts.googleapis.com/css2?family=Lora:wght@400;600;700&family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+        <div style={S.inner}>
+          <div style={S.header}>
+            <p style={S.brandLabel}>The Burks Collective</p>
+            <h1 style={S.pageTitle}>Your ROI Results</h1>
+            <p style={S.pageSub}>{data.productName}</p>
+          </div>
+
+          {/* Hero */}
+          <div style={{ ...S.card, background: c.brown }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 20 }}>
+              <div>
+                <p style={{ fontSize: 11, letterSpacing: "0.16em", textTransform: "uppercase", color: c.taupe, fontWeight: 700, marginBottom: 8 }}>Return on Investment</p>
+                <p style={{ fontFamily: "'Lora', serif", fontSize: 60, fontWeight: 700, color: roi >= 0 ? c.offwhite : "#e08080", lineHeight: 1, margin: 0 }}>{formatPct(roi)}</p>
+              </div>
+              <div style={{ textAlign: "right" }}>
+                <p style={{ fontSize: 11, letterSpacing: "0.12em", textTransform: "uppercase", color: c.taupe, fontWeight: 700, marginBottom: 6 }}>Net Profit</p>
+                <p style={{ fontFamily: "'Lora', serif", fontSize: 32, fontWeight: 700, color: netProfit >= 0 ? c.offwhite : "#e08080", margin: 0 }}>{formatCurrencyShort(netProfit)}</p>
+              </div>
+            </div>
+            <div style={{ height: 1, background: "rgba(255,255,255,0.12)", marginBottom: 18 }} />
+            <p style={{ fontSize: 13, color: "rgba(240,237,232,0.82)", lineHeight: 1.7, margin: 0, fontStyle: "italic" }}>
+              {getRoiMessage(roi)}
+            </p>
+          </div>
+
+          {/* Key Numbers */}
+          <div style={{ display: "flex", gap: 12, flexWrap: "wrap", marginBottom: 4 }}>
+            {[
+              { label: "Total Revenue", value: formatCurrency(totalRevenue), sub: `${sales} sales at ${formatCurrencyShort(price)}` },
+              { label: "Total Costs", value: formatCurrency(totalCosts), sub: "fixed costs plus fees" },
+              { label: "Net Profit", value: formatCurrency(netProfit), sub: "revenue minus all costs", highlight: netProfit >= 0 },
+            ].map((item, i) => (
+              <div key={i} style={{ ...S.card, flex: 1, minWidth: 150, marginBottom: 16, padding: "20px 20px" }}>
+                <p style={{ fontSize: 11, color: c.muted, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 8 }}>{item.label}</p>
+                <p style={{ fontFamily: "'Lora', serif", fontSize: 22, fontWeight: 700, color: item.highlight !== undefined ? (item.highlight ? c.sage : "#b07070") : c.brown, margin: "0 0 4px" }}>{item.value}</p>
+                <p style={{ fontSize: 11, color: c.muted, margin: 0 }}>{item.sub}</p>
+              </div>
+            ))}
+          </div>
+
+          {/* Hourly Rate and Break Even */}
+          <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
+            {hours > 0 && (
+              <div style={{ ...S.card, flex: 1, minWidth: 200 }}>
+                <p style={S.eyebrow}>Your Effective Hourly Rate</p>
+                <p style={{ fontFamily: "'Lora', serif", fontSize: 40, fontWeight: 700, color: c.brown, margin: "0 0 6px", lineHeight: 1 }}>
+                  {hourlyRate > 0 ? formatCurrencyShort(hourlyRate) : "$0"}<span style={{ fontSize: 16, fontWeight: 400, color: c.muted }}>/hr</span>
+                </p>
+                <p style={{ fontSize: 13, color: "#6b5a4e", lineHeight: 1.7, margin: 0 }}>
+                  Based on {hours} hours invested and {formatCurrency(netProfit)} net profit. As sales grow, this number increases without any additional time from you. That is what passive income looks like in practice.
+                </p>
+              </div>
+            )}
+            <div style={{ ...S.card, flex: 1, minWidth: 200 }}>
+              <p style={S.eyebrow}>Break Even Point</p>
+              <p style={{ fontFamily: "'Lora', serif", fontSize: 40, fontWeight: 700, color: c.brown, margin: "0 0 6px", lineHeight: 1 }}>
+                {breakEven} <span style={{ fontSize: 16, fontWeight: 400, color: c.muted }}>sales</span>
+              </p>
+              <p style={{ fontSize: 13, color: "#6b5a4e", lineHeight: 1.7, margin: 0 }}>
+                {sales >= breakEven
+                  ? `You crossed your break-even point at ${breakEven} sales. Every sale from here is pure profit.`
+                  : `You need ${breakEven - sales} more ${breakEven - sales === 1 ? "sale" : "sales"} to recover your costs. After that, every sale is pure profit.`}
+              </p>
+            </div>
+          </div>
+
+          {/* Projections */}
+          <div style={S.card}>
+            <p style={S.eyebrow}>Projected ROI at Different Sales Volumes</p>
+            <p style={{ fontSize: 13, color: "#6b5a4e", marginBottom: 20, lineHeight: 1.7 }}>
+              Your fixed costs stay the same no matter how many units you sell. This is what makes digital products powerful. Here is what your numbers look like as sales grow.
+            </p>
+            <div style={{ overflowX: "auto" }}>
+              <table style={{ width: "100%", borderCollapse: "collapse" }}>
+                <thead>
+                  <tr>
+                    {["Volume", "Revenue", "Net Profit", "ROI", "Status"].map((h) => (
+                      <th key={h} style={{ fontSize: 11, fontWeight: 700, color: c.muted, textTransform: "uppercase", letterSpacing: "0.08em", padding: "0 0 12px", textAlign: "left" }}>{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {projections.map((p, i) => {
+                    const isCurrent = sales >= p.sales && (i === projections.length - 1 || sales < projections[i + 1]?.sales);
+                    return (
+                      <tr key={i} style={{ background: isCurrent ? `rgba(138,158,140,0.08)` : "transparent" }}>
+                        <td style={{ padding: "12px 0", borderBottom: `1px solid ${c.light}`, fontSize: 13, fontWeight: 700, color: c.brown }}>{p.label}</td>
+                        <td style={{ padding: "12px 0", borderBottom: `1px solid ${c.light}`, fontSize: 13, color: c.brown }}>{formatCurrencyShort(p.revenue)}</td>
+                        <td style={{ padding: "12px 0", borderBottom: `1px solid ${c.light}`, fontSize: 13, fontWeight: 700, color: p.profit >= 0 ? c.sage : "#b07070" }}>{formatCurrencyShort(p.profit)}</td>
+                        <td style={{ padding: "12px 0", borderBottom: `1px solid ${c.light}`, fontSize: 13, fontWeight: 700, color: p.roi >= 0 ? c.brown : "#b07070" }}>{formatPct(p.roi)}</td>
+                        <td style={{ padding: "12px 0", borderBottom: `1px solid ${c.light}` }}>
+                          <span style={{ fontSize: 11, fontWeight: 700, padding: "3px 10px", borderRadius: 20, background: p.pastBreakEven ? `rgba(138,158,140,0.15)` : `rgba(196,168,130,0.2)`, color: p.pastBreakEven ? c.sage : c.taupe }}>
+                            {p.pastBreakEven ? "In profit" : "Pre break-even"}
+                          </span>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          {/* Cost Breakdown */}
+          <div style={S.card}>
+            <p style={S.eyebrow}>Cost Breakdown</p>
+            {[
+              { label: "Tools or software", value: toolsCost },
+              { label: "Design or contractors", value: designCost },
+              { label: "Ads or promotion", value: adsCost },
+              { label: `Platform fees (${feesPct}% of revenue)`, value: feesTotal },
+            ].filter((item) => item.value > 0).map((item, i, arr) => (
+              <div key={i} style={{ display: "flex", justifyContent: "space-between", padding: "11px 0", borderBottom: i < arr.length - 1 ? `1px solid ${c.light}` : "none" }}>
+                <p style={{ fontSize: 13, color: c.brown, margin: 0 }}>{item.label}</p>
+                <p style={{ fontSize: 14, fontWeight: 700, color: c.brown, margin: 0 }}>{formatCurrency(item.value)}</p>
+              </div>
+            ))}
+            <div style={{ display: "flex", justifyContent: "space-between", padding: "14px 0 0", marginTop: 4 }}>
+              <p style={{ fontSize: 14, fontWeight: 700, color: c.brown, margin: 0 }}>Total Costs</p>
+              <p style={{ fontFamily: "'Lora', serif", fontSize: 18, fontWeight: 700, color: c.brown, margin: 0 }}>{formatCurrency(totalCosts)}</p>
+            </div>
+          </div>
+
+          {/* Next Step */}
+          <div style={{ ...S.card, borderLeft: `4px solid ${c.sage}` }}>
+            <p style={{ ...S.eyebrow, marginBottom: 8 }}>Your Next Step</p>
+            <p style={{ fontSize: 15, fontWeight: 600, color: c.brown, margin: "0 0 8px" }}>
+              Move into Module 6: The Experience to Income Blueprint.
+            </p>
+            <p style={{ fontSize: 14, color: "#6b5a4e", lineHeight: 1.7, margin: 0 }}>
+              You now have the full financial picture for this product. Head to the final module to map your knowledge into your next offer and keep the momentum going.
+            </p>
+          </div>
+
+          <div style={{ display: "flex", gap: 14 }}>
+            <button style={S.btnOutline} onClick={() => setScreen("input")}>Recalculate</button>
+            <button style={S.btnGhost} onClick={() => { setData({ screen: "input", productName: "", price: "", hoursSpent: "", costs: { tools: "", design: "", ads: "", fees: "" }, salesCount: "" }); setScreen("input"); try { localStorage.removeItem(STORAGE_KEY); } catch {} }}>Start Fresh</button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return null;
+}
+
+
+const domContainer = document.getElementById('root');
+const root = ReactDOM.createRoot(domContainer);
+root.render(React.createElement(ROICalculator));
+</script>
+</body>
+</html>

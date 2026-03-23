@@ -1,0 +1,366 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Pricing Calculator | The Burks Collective</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.2/babel.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,600;0,700;1,400;1,600&family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: 'Poppins', sans-serif; background: #F0EDE8; }
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+const { useState, useEffect, useRef } = React;
+
+
+const STORAGE_KEY = "burks_pricing_calculator";
+
+const TIERS = [
+  { label: "Entry", multiplier: 0.6, description: "Low barrier, high volume" },
+  { label: "Core", multiplier: 1.0, description: "Your sweet spot price" },
+  { label: "Premium", multiplier: 1.6, description: "Higher price, fewer sales needed" },
+];
+
+const getNextStep = (recommended) => {
+  if (recommended < 27) return "Consider raising your price. A product under $27 requires a very high volume of sales to move the needle on your income goal. Think about what transformation your product delivers and price closer to that value.";
+  if (recommended < 47) return "You are in solid low-ticket territory. This price works well for first-time buyers and cold audiences. Make sure your product delivers a clear, fast result so buyers become repeat customers.";
+  if (recommended < 97) return "This is a strong mid-range price. Your product needs a clear promise and a well-written description to convert at this point. Focus on the outcome, not the features.";
+  if (recommended < 197) return "At this price point, your product needs to feel complete and premium. Make sure your delivery experience matches what someone expects when they invest close to $100 or more.";
+  return "You are pricing at a level that signals real expertise and transformation. Make sure your product delivers on that promise and consider adding a short video walkthrough or bonus to support the value.";
+};
+
+const formatCurrency = (n) => "$" + Math.round(n).toLocaleString();
+
+function PricingCalculator() {
+  const [saved, setSaved] = useState(() => {
+    try {
+      const s = localStorage.getItem(STORAGE_KEY);
+      if (s) return JSON.parse(s);
+    } catch {}
+    return null;
+  });
+
+  const [step, setStep] = useState(saved ? "results" : "intro");
+  const [productName, setProductName] = useState(saved?.productName || "");
+  const [monthlyGoal, setMonthlyGoal] = useState(saved?.monthlyGoal || "");
+  const [desiredSales, setDesiredSales] = useState(saved?.desiredSales || "");
+  const [nameInput, setNameInput] = useState("");
+
+  useEffect(() => {
+    if (saved) {
+      setProductName(saved.productName);
+      setMonthlyGoal(saved.monthlyGoal);
+      setDesiredSales(saved.desiredSales);
+    }
+  }, []);
+
+  const goal = parseFloat(monthlyGoal) || 0;
+  const sales = parseInt(desiredSales) || 0;
+  const recommended = sales > 0 ? goal / sales : 0;
+
+  const tiers = TIERS.map((t) => ({
+    ...t,
+    price: recommended * t.multiplier,
+    unitsSold: recommended * t.multiplier > 0 ? Math.ceil(goal / (recommended * t.multiplier)) : 0,
+    monthlyRevenue: (recommended * t.multiplier) * sales,
+  }));
+
+  const save = () => {
+    const data = { productName, monthlyGoal, desiredSales };
+    setSaved(data);
+    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(data)); } catch {}
+    setStep("results");
+  };
+
+  const reset = () => {
+    setProductName("");
+    setMonthlyGoal("");
+    setDesiredSales("");
+    setNameInput("");
+    setSaved(null);
+    setStep("intro");
+    try { localStorage.removeItem(STORAGE_KEY); } catch {}
+  };
+
+  const canCalculate = goal > 0 && sales > 0;
+
+  const c = {
+    cream: "#F0EDE8", sage: "#8A9E8C", brown: "#3D1C02",
+    taupe: "#C4A882", offwhite: "#FAF8F5",
+    muted: "#A89880", border: "#E0D9D1", light: "#EDE8E2",
+  };
+
+  const S = {
+    wrap: { minHeight: "100vh", background: c.cream, fontFamily: "'Poppins', sans-serif", padding: "0 16px 80px" },
+    inner: { maxWidth: 680, margin: "0 auto" },
+    header: { paddingTop: 40, paddingBottom: 24, borderBottom: `1px solid ${c.taupe}`, marginBottom: 36 },
+    brandLabel: { fontFamily: "'Lora', serif", fontSize: 13, color: c.taupe, letterSpacing: "0.06em", marginBottom: 4 },
+    pageTitle: { fontFamily: "'Lora', serif", fontSize: 28, fontWeight: 700, color: c.brown, margin: "0 0 6px" },
+    pageSub: { fontSize: 13, color: "#6b5a4e", margin: 0, lineHeight: 1.6 },
+    eyebrow: { fontSize: 11, letterSpacing: "0.16em", textTransform: "uppercase", color: c.sage, fontWeight: 700, marginBottom: 14 },
+    card: { background: c.offwhite, borderRadius: 16, padding: "32px 36px", boxShadow: "0 2px 20px rgba(61,28,2,0.06)", marginBottom: 20 },
+    label: { display: "block", fontSize: 13, fontWeight: 600, color: c.brown, marginBottom: 6, letterSpacing: "0.03em" },
+    sublabel: { display: "block", fontSize: 12, color: c.muted, marginBottom: 12, lineHeight: 1.5 },
+    input: { width: "100%", padding: "13px 16px", borderRadius: 10, border: `2px solid ${c.border}`, background: c.cream, fontSize: 15, fontFamily: "'Poppins', sans-serif", color: c.brown, outline: "none", boxSizing: "border-box" },
+    inputPrefix: { position: "relative" },
+    prefix: { position: "absolute", left: 14, top: "50%", transform: "translateY(-50%)", fontSize: 15, color: c.muted, fontWeight: 600, pointerEvents: "none" },
+    btn: { background: c.brown, color: c.offwhite, border: "none", borderRadius: 10, padding: "14px 32px", fontSize: 14, fontWeight: 600, fontFamily: "'Poppins', sans-serif", cursor: "pointer", letterSpacing: "0.04em" },
+    btnOutline: { background: "transparent", color: c.brown, border: `2px solid ${c.brown}`, borderRadius: 10, padding: "12px 28px", fontSize: 13, fontWeight: 600, fontFamily: "'Poppins', sans-serif", cursor: "pointer" },
+    btnGhost: { background: "transparent", color: c.muted, border: `1px solid ${c.border}`, borderRadius: 8, padding: "7px 14px", fontSize: 11, fontWeight: 600, fontFamily: "'Poppins', sans-serif", cursor: "pointer" },
+  };
+
+  if (step === "intro") {
+    return (
+      <div style={S.wrap}>
+        <link href="https://fonts.googleapis.com/css2?family=Lora:wght@400;600;700&family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+        <div style={S.inner}>
+          <div style={S.header}>
+            <p style={S.brandLabel}>The Burks Collective</p>
+            <h1 style={S.pageTitle}>Pricing Calculator</h1>
+            <p style={S.pageSub}>Find the right price for your product based on your income goal and how many sales you want to make each month.</p>
+          </div>
+
+          <div style={S.card}>
+            <p style={S.eyebrow}>Your Product</p>
+            <label style={S.label}>What are you pricing?</label>
+            <span style={S.sublabel}>A working title is fine.</span>
+            <input
+              style={{ ...S.input, marginBottom: 28 }}
+              placeholder="e.g. 90-Day Budget Reset Guide"
+              value={nameInput}
+              onChange={(e) => setNameInput(e.target.value)}
+            />
+
+            <p style={{ ...S.eyebrow, marginTop: 8 }}>Your Numbers</p>
+
+            <label style={S.label}>Monthly income goal from this product</label>
+            <span style={S.sublabel}>How much do you want this one product to bring in each month?</span>
+            <div style={{ ...S.inputPrefix, marginBottom: 24 }}>
+              <span style={S.prefix}>$</span>
+              <input
+                style={{ ...S.input, paddingLeft: 28 }}
+                type="number"
+                placeholder="500"
+                value={monthlyGoal}
+                onChange={(e) => setMonthlyGoal(e.target.value)}
+              />
+            </div>
+
+            <label style={S.label}>Desired number of sales per month</label>
+            <span style={S.sublabel}>Be realistic based on your current audience size. You can always scale this up later.</span>
+            <input
+              style={{ ...S.input, marginBottom: 32 }}
+              type="number"
+              placeholder="10"
+              value={desiredSales}
+              onChange={(e) => setDesiredSales(e.target.value)}
+            />
+
+            {canCalculate && (
+              <div style={{ background: c.cream, borderRadius: 12, padding: "16px 20px", marginBottom: 28, borderLeft: `3px solid ${c.sage}` }}>
+                <p style={{ fontSize: 12, color: c.sage, fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 4 }}>Quick Preview</p>
+                <p style={{ fontSize: 15, color: c.brown, margin: 0 }}>
+                  To earn <strong>{formatCurrency(goal)}</strong> per month selling <strong>{sales}</strong> units, your price needs to be around <strong>{formatCurrency(recommended)}</strong>.
+                </p>
+              </div>
+            )}
+
+            <button
+              style={{ ...S.btn, ...(!canCalculate || !nameInput.trim() ? { opacity: 0.35, cursor: "not-allowed" } : {}) }}
+              disabled={!canCalculate || !nameInput.trim()}
+              onClick={() => { setProductName(nameInput.trim()); save(); }}
+            >
+              Calculate My Price
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (step === "results") {
+    const corePrice = tiers.find((t) => t.label === "Core");
+    return (
+      <div style={S.wrap}>
+        <link href="https://fonts.googleapis.com/css2?family=Lora:wght@400;600;700&family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+        <div style={S.inner}>
+          <div style={S.header}>
+            <p style={S.brandLabel}>The Burks Collective</p>
+            <h1 style={S.pageTitle}>Your Pricing Results</h1>
+            <p style={S.pageSub}>{productName}</p>
+          </div>
+
+          {/* Recommended Price */}
+          <div style={{ ...S.card, background: c.brown, textAlign: "center" }}>
+            <p style={{ fontSize: 11, letterSpacing: "0.18em", textTransform: "uppercase", color: c.taupe, fontWeight: 700, marginBottom: 12 }}>Recommended Price</p>
+            <p style={{ fontFamily: "'Lora', serif", fontSize: 64, fontWeight: 700, color: c.offwhite, lineHeight: 1, margin: "0 0 8px" }}>
+              {formatCurrency(recommended)}
+            </p>
+            <p style={{ fontSize: 13, color: "rgba(240,237,232,0.7)", margin: "0 0 20px" }}>
+              Based on {formatCurrency(goal)} monthly goal and {sales} sales per month
+            </p>
+            <div style={{ height: 1, background: "rgba(255,255,255,0.12)", marginBottom: 20 }} />
+            <p style={{ fontSize: 13, color: "rgba(240,237,232,0.85)", lineHeight: 1.7, margin: 0, fontStyle: "italic" }}>
+              {getNextStep(recommended)}
+            </p>
+          </div>
+
+          {/* Price Tiers */}
+          <div style={S.card}>
+            <p style={S.eyebrow}>Your Price Range</p>
+            <p style={{ fontSize: 14, color: "#6b5a4e", marginBottom: 24, lineHeight: 1.7 }}>
+              Here is how your numbers look at three different price points. Use this to decide where you want to position your product.
+            </p>
+
+            {tiers.map((tier, i) => {
+              const isCore = tier.label === "Core";
+              return (
+                <div key={i} style={{
+                  borderRadius: 12,
+                  border: isCore ? `2px solid ${c.brown}` : `2px solid ${c.light}`,
+                  background: isCore ? c.cream : "transparent",
+                  padding: "20px 24px",
+                  marginBottom: 12,
+                  position: "relative",
+                }}>
+                  {isCore && (
+                    <span style={{
+                      position: "absolute", top: -11, left: 20,
+                      background: c.brown, color: c.offwhite,
+                      fontSize: 10, fontWeight: 700, letterSpacing: "0.1em",
+                      textTransform: "uppercase", padding: "3px 12px", borderRadius: 20,
+                    }}>Recommended</span>
+                  )}
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 14 }}>
+                    <div>
+                      <p style={{ fontSize: 15, fontWeight: 700, color: c.brown, margin: "0 0 2px" }}>{tier.label} Price</p>
+                      <p style={{ fontSize: 12, color: c.muted, margin: 0 }}>{tier.description}</p>
+                    </div>
+                    <p style={{ fontFamily: "'Lora', serif", fontSize: 28, fontWeight: 700, color: c.brown, margin: 0 }}>{formatCurrency(tier.price)}</p>
+                  </div>
+
+                  <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
+                    <div style={{ flex: 1, minWidth: 120, background: c.offwhite, borderRadius: 10, padding: "12px 16px" }}>
+                      <p style={{ fontSize: 11, color: c.muted, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 4 }}>Units to Hit Goal</p>
+                      <p style={{ fontFamily: "'Lora', serif", fontSize: 22, fontWeight: 700, color: c.brown, margin: 0 }}>{tier.unitsSold}</p>
+                      <p style={{ fontSize: 11, color: c.muted, margin: "2px 0 0" }}>sales per month</p>
+                    </div>
+                    <div style={{ flex: 1, minWidth: 120, background: c.offwhite, borderRadius: 10, padding: "12px 16px" }}>
+                      <p style={{ fontSize: 11, color: c.muted, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 4 }}>Monthly Revenue</p>
+                      <p style={{ fontFamily: "'Lora', serif", fontSize: 22, fontWeight: 700, color: c.brown, margin: 0 }}>{formatCurrency(tier.price * sales)}</p>
+                      <p style={{ fontSize: 11, color: c.muted, margin: "2px 0 0" }}>at {sales} sales</p>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Revenue Projection */}
+          <div style={S.card}>
+            <p style={S.eyebrow}>Revenue Projection</p>
+            <p style={{ fontSize: 14, color: "#6b5a4e", marginBottom: 24, lineHeight: 1.7 }}>
+              Here is what your recommended price of {formatCurrency(recommended)} could generate over time at your target sales volume.
+            </p>
+
+            {[
+              { label: "30 Days", months: 1 },
+              { label: "90 Days", months: 3 },
+              { label: "6 Months", months: 6 },
+              { label: "12 Months", months: 12 },
+            ].map((period, i, arr) => {
+              const revenue = recommended * sales * period.months;
+              const pct = (period.months / 12) * 100;
+              return (
+                <div key={i} style={{ display: "flex", alignItems: "center", gap: 16, padding: "14px 0", borderBottom: i < arr.length - 1 ? `1px solid ${c.light}` : "none" }}>
+                  <p style={{ fontSize: 13, fontWeight: 600, color: c.brown, width: 80, margin: 0, flexShrink: 0 }}>{period.label}</p>
+                  <div style={{ flex: 1, height: 6, borderRadius: 6, background: c.light, overflow: "hidden" }}>
+                    <div style={{ height: "100%", width: `${pct}%`, background: c.sage, borderRadius: 6 }} />
+                  </div>
+                  <p style={{ fontFamily: "'Lora', serif", fontSize: 16, fontWeight: 700, color: c.brown, margin: 0, width: 80, textAlign: "right", flexShrink: 0 }}>{formatCurrency(revenue)}</p>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Daily and Weekly Goals */}
+          <div style={S.card}>
+            <p style={S.eyebrow}>Your Action Plan</p>
+            <p style={{ fontSize: 14, color: "#6b5a4e", marginBottom: 24, lineHeight: 1.7 }}>
+              A monthly goal without a weekly and daily plan is just a wish. Here is what hitting {formatCurrency(goal)} this month actually looks like broken down into actions you can take every single day.
+            </p>
+
+            <div style={{ display: "flex", gap: 12, flexWrap: "wrap", marginBottom: 24 }}>
+              {[
+                {
+                  label: "Daily Sales Needed",
+                  value: (sales / 30).toFixed(1),
+                  sub: "sales per day",
+                  note: "Less than 1 daily sale means consistency over intensity. Show up every day.",
+                },
+                {
+                  label: "Weekly Sales Needed",
+                  value: Math.ceil(sales / 4.3),
+                  sub: "sales per week",
+                  note: "This is your weekly minimum. Hit this every week and the month takes care of itself.",
+                },
+                {
+                  label: "Daily Revenue Target",
+                  value: formatCurrency(goal / 30),
+                  sub: "per day",
+                  note: "When you see this number daily it stops feeling abstract and starts feeling achievable.",
+                },
+              ].map((item, i) => (
+                <div key={i} style={{ flex: 1, minWidth: 160, background: c.cream, borderRadius: 12, padding: "18px 20px" }}>
+                  <p style={{ fontSize: 11, color: c.muted, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 8 }}>{item.label}</p>
+                  <p style={{ fontFamily: "'Lora', serif", fontSize: 30, fontWeight: 700, color: c.brown, margin: "0 0 2px", lineHeight: 1 }}>{item.value}</p>
+                  <p style={{ fontSize: 11, color: c.sage, fontWeight: 600, margin: "0 0 10px" }}>{item.sub}</p>
+                  <p style={{ fontSize: 12, color: "#6b5a4e", lineHeight: 1.6, margin: 0 }}>{item.note}</p>
+                </div>
+              ))}
+            </div>
+
+            <div style={{ background: c.brown, borderRadius: 12, padding: "20px 24px" }}>
+              <p style={{ fontSize: 12, fontWeight: 700, color: c.taupe, letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 10 }}>Weekly Check-In</p>
+              <p style={{ fontSize: 14, color: c.offwhite, lineHeight: 1.8, margin: 0 }}>
+                Every Monday, ask yourself one question: Did I hit my {Math.ceil(sales / 4.3)} sales last week? If yes, keep doing what you are doing. If no, identify the one thing that got in the way and address it before the week starts again. Do not wait until the end of the month to look at the numbers.
+              </p>
+            </div>
+          </div>
+
+          {/* Next Step */}
+          <div style={{ ...S.card, borderLeft: `4px solid ${c.sage}` }}>
+            <p style={{ ...S.eyebrow, marginBottom: 8 }}>Your Next Step</p>
+            <p style={{ fontSize: 15, fontWeight: 600, color: c.brown, margin: "0 0 8px" }}>
+              Set your price and move into the Price Ladder Builder.
+            </p>
+            <p style={{ fontSize: 14, color: "#6b5a4e", lineHeight: 1.7, margin: 0 }}>
+              The Pricing Calculator gives you a number. The Price Ladder Builder shows you how that number fits into a full product ecosystem so your first sale is never your last.
+            </p>
+          </div>
+
+          <div style={{ display: "flex", gap: 14, flexWrap: "wrap" }}>
+            <button style={S.btnOutline} onClick={() => setStep("intro")}>Recalculate</button>
+            <button style={S.btnGhost} onClick={reset}>Start Fresh</button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return null;
+}
+
+
+const domContainer = document.getElementById('root');
+const root = ReactDOM.createRoot(domContainer);
+root.render(React.createElement(PricingCalculator));
+</script>
+</body>
+</html>
